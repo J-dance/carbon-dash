@@ -23,7 +23,7 @@ Each step lists the Svelte concepts it is meant to teach.
 - [x] Set up SvelteKit project
 - [ ] **1. Learn the basics and scaffold**
   - [x] Work through the Svelte 5 tutorial (runes, templates, events, bindings) - https://svelte.dev/tutorial
-  - [ ] Layout, routes and navigation (`+layout.svelte`, `+page.svelte`)
+  - [x] Layout, routes and navigation (`+layout.svelte`, `+page.svelte`)
   - [ ] Concepts: `$state`, `$derived`, `$props`, `{#each}`, `{#if}`, snippets
 - [ ] **2. API client and first vertical slice**
   - [ ] Typed client for the Carbon Intensity API in `src/lib/api/`

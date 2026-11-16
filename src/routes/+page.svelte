@@ -1,10 +1,5 @@
-<main>
-  <h1>Great Britian Carbon Intensity</h1>
-</main>
+<svelte:head>
+	<title>Home | Carbon Dash</title>
+</svelte:head>
 
-<style>
-  main {
-    display: flex;
-    flex-direction: column;
-  }
-</style>
+<h1>Great Britain Carbon Intensity</h1>

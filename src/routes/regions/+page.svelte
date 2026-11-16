@@ -1,5 +1,5 @@
-<script></script>
+<svelte:head>
+	<title>Regions | Carbon Dash</title>
+</svelte:head>
 
-<main>
-  <h1>Regions</h1>
-</main>
+<h1>Regions</h1>

@@ -53,6 +53,21 @@ Each step lists the Svelte concepts it is meant to teach.
   - [ ] Hosted Postgres (Neon or Supabase) and a live demo link
   - [ ] Screenshots, "what I learned", and how I used AI tools (what I reviewed, tested and rejected)
 
+## Local setup
+
+Needs Node, pnpm and Docker Desktop.
+
+```bash
+pnpm install
+cp .env.example .env   # local database settings, matches docker-compose.yml
+pnpm db:up             # start Postgres 17 in Docker (host port 5433)
+pnpm dev
+```
+
+- `pnpm db:down` stops the database and keeps its data. `docker compose down -v` also deletes the data, which gives a fresh empty database.
+- Postgres uses host port 5433 so it does not clash with a Postgres already running on 5432 (for example from Homebrew).
+- Schema, migrations and the backfill script come with step 3 and will be documented here.
+
 ## Sections
 
 - Overview UK dashboard (landing page)

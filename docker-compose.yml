@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      # Throwaway credentials for local development only.
+      POSTGRES_USER: carbon
+      POSTGRES_PASSWORD: carbon
+      POSTGRES_DB: carbon_dash
+    ports:
+      # Host port 5433, because a Postgres installed with Homebrew often already uses 5432.
+      - '5433:5432'
+    volumes:
+      # Keeps the data when the container is removed. `docker compose down -v` deletes it.
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

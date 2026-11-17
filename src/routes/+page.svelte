@@ -4,6 +4,16 @@
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
+
+	// Fixed locale and time zone, so the server and the browser print the same text.
+	const timeFormat = new Intl.DateTimeFormat("en-GB", {
+		timeStyle: "short",
+		timeZone: "UTC"
+	});
+
+	function formatTime(iso: string): string {
+		return timeFormat.format(new Date(iso));
+	}
 </script>
 
 <svelte:head>
@@ -12,6 +22,14 @@
 
 <h1>Great Britain Carbon Intensity</h1>
 
+<p class="period">
+	Latest 30-minute period:
+	<time datetime={data.intensity.from}>{formatTime(data.intensity.from)}</time>
+	to
+	<time datetime={data.intensity.to}>{formatTime(data.intensity.to)}</time>
+	UTC
+</p>
+
 <div class="cards">
 	<IntensityNowCard intensity={data.intensity} />
 	<FuelMixCard mix={data.generation.mix} />
@@ -19,7 +37,13 @@
 
 <style>
 	h1 {
+		margin-bottom: var(--space-2);
+	}
+
+	.period {
 		margin-bottom: var(--space-4);
+		color: var(--text-muted);
+		font-size: var(--text-sm);
 	}
 
 	/*

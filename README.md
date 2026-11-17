@@ -21,14 +21,14 @@ An analytics dashboard for the [UK Carbon Intensity API](https://carbon-intensit
 Each step lists the Svelte concepts it is meant to teach.
 
 - [x] Set up SvelteKit project
-- [ ] **1. Learn the basics and scaffold**
+- [x] **1. Learn the basics and scaffold**
   - [x] Work through the Svelte 5 tutorial (runes, templates, events, bindings) - https://svelte.dev/tutorial
   - [x] Layout, routes and navigation (`+layout.svelte`, `+page.svelte`)
-  - [ ] Concepts: `$state`, `$derived`, `$props`, `{#each}`, `{#if}`, snippets
-- [ ] **2. API client and first vertical slice**
-  - [ ] Typed client for the Carbon Intensity API in `src/lib/api/`
-  - [ ] National "now" card: intensity, index badge, renewable %
-  - [ ] Concepts: `+page.server.ts` `load`, TypeScript with Svelte, components and props
+  - [x] Concepts: `$state`, `$derived`, `$props`, `{#each}`, `{#if}`, snippets
+- [x] **2. API client and first vertical slice**
+  - [x] Typed client for the Carbon Intensity API in `src/lib/api/`
+  - [x] National "now" card: intensity, index badge, renewable %
+  - [x] Concepts: `+page.server.ts` `load`, TypeScript with Svelte, components and props
 - [ ] **3. Postgres and my own API**
   - [ ] Schema: `regions`, `readings` and `national_intensity` (see Data design)
   - [ ] Migrations (Drizzle) and a 90-day backfill script
@@ -87,24 +87,24 @@ Using the Intensity API (`https://api.carbonintensity.org.uk`, no key needed). D
 
 **`readings`**: one row per region per 30-minute period (not a snapshot of when it was fetched). Rows are updated in place when `actual` arrives later.
 
-| Column | Type | Notes |
-|---|---|---|
-| `region_id` | smallint, FK to `regions` | Part of the primary key |
-| `period_from` | timestamptz | Part of the primary key. `period_to` is always +30 min, so not stored |
-| `forecast` | smallint | gCO2/kWh, the regional forecast |
-| `index` | text or enum | very low, low, moderate, high, very high. Stored as returned by the API |
-| `biomass`, `coal`, `imports`, `gas`, `nuclear`, `other`, `hydro`, `solar`, `wind` | numeric(4,1) | Percent shares of the generation mix |
+| Column                                                                            | Type                      | Notes                                                                   |
+| --------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------- |
+| `region_id`                                                                       | smallint, FK to `regions` | Part of the primary key                                                 |
+| `period_from`                                                                     | timestamptz               | Part of the primary key. `period_to` is always +30 min, so not stored   |
+| `forecast`                                                                        | smallint                  | gCO2/kWh, the regional forecast                                         |
+| `index`                                                                           | text or enum              | very low, low, moderate, high, very high. Stored as returned by the API |
+| `biomass`, `coal`, `imports`, `gas`, `nuclear`, `other`, `hydro`, `solar`, `wind` | numeric(4,1)              | Percent shares of the generation mix                                    |
 
 Primary key (`region_id`, `period_from`) so re-ingesting a period overwrites it. Second index on (`period_from`, `region_id`) for "latest for all regions" and tier queries.
 
 **`national_intensity`**: one row per 30-minute period from the national `/intensity` endpoint.
 
-| Column | Type | Notes |
-|---|---|---|
-| `period_from` | timestamptz | Primary key |
-| `forecast` | smallint | gCO2/kWh, the national forecast |
-| `actual` | smallint, nullable | Null until the period has ended |
-| `index` | text or enum | As returned by the API |
+| Column        | Type               | Notes                           |
+| ------------- | ------------------ | ------------------------------- |
+| `period_from` | timestamptz        | Primary key                     |
+| `forecast`    | smallint           | gCO2/kWh, the national forecast |
+| `actual`      | smallint, nullable | Null until the period has ended |
+| `index`       | text or enum       | As returned by the API          |
 
 **Why two tables:** the all-regions endpoint returns GB (region 18), but its forecast is not the same data as the national endpoint. Checked over 13 days (625 periods): the forecast differed in 579 of them, and the index in 29. The regional endpoint also never returns `actual`. So the national call cannot be dropped: it is the only source of `actual`, and forecast accuracy must compare the national forecast with the national actual. Region 18 stays in `readings` for its fuel mix: checked over the same 625 periods, its mix is identical to `/generation`, so the national fuel mix comes from the regional call and no separate `/generation` backfill is needed. Ignore region 18's `forecast` and `index` columns for national analytics (use `national_intensity`).
 
@@ -116,14 +116,14 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
 
 ### Where each metric gets its data
 
-| Metric | Source |
-|---|---|
-| Renewable / low-carbon / fossil % | Latest fuel mix. The fuel classification (is biomass renewable? imports?) lives in one constants file |
-| Cleanest / dirtiest 48h window | Live `fw48h` call, cached for a few minutes. Slide a window (e.g. 2h) over the 97 periods |
-| Current vs 30-day average | Stored `national_intensity` |
-| Region tier | Average forecast per region over a chosen period, then `NTILE(3)` over regions 1-14 only. 14 regions split 5/5/4, so decide which tier gets the extra region. Needs a tiebreak (see quirks) |
-| Region gap | Latest forecast per region |
-| Forecast accuracy | `forecast` and `actual` in `national_intensity` |
+| Metric                            | Source                                                                                                                                                                                      |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Renewable / low-carbon / fossil % | Latest fuel mix. The fuel classification (is biomass renewable? imports?) lives in one constants file                                                                                       |
+| Cleanest / dirtiest 48h window    | Live `fw48h` call, cached for a few minutes. Slide a window (e.g. 2h) over the 97 periods                                                                                                   |
+| Current vs 30-day average         | Stored `national_intensity`                                                                                                                                                                 |
+| Region tier                       | Average forecast per region over a chosen period, then `NTILE(3)` over regions 1-14 only. 14 regions split 5/5/4, so decide which tier gets the extra region. Needs a tiebreak (see quirks) |
+| Region gap                        | Latest forecast per region                                                                                                                                                                  |
+| Forecast accuracy                 | `forecast` and `actual` in `national_intensity`                                                                                                                                             |
 
 ### Ingest and refresh
 
@@ -173,24 +173,24 @@ There are 3 areas of data: intensity, statistics (time comparison) and generatio
 
 ### National dashboard (`/`)
 
-| Visual | Metric | Chart type |
-|---|---|---|
-| "Now" card | Current intensity, index badge, vs 30-day average | Big number, labelled badge, small delta |
-| Fuel mix now | Renewable / low-carbon / fossil % | Stacked bar or donut with labels |
-| Next 48h | Forecast intensity, cleanest and dirtiest window highlighted | Line chart with highlighted band |
-| Last 24h | Actual vs forecast intensity, with forecast accuracy summary (mean error, bias, share within +/-10%) in the card header | Two-line chart (solid actual, dashed forecast) |
-| (Stretch) Fuel mix over time | National fuel shares over the last day or week | Stacked area chart (cut from MVP, time is short) |
-| (Stretch) Forecast accuracy over time | Forecast vs actual error over time | Line of error |
+| Visual                                | Metric                                                                                                                  | Chart type                                       |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| "Now" card                            | Current intensity, index badge, vs 30-day average                                                                       | Big number, labelled badge, small delta          |
+| Fuel mix now                          | Renewable / low-carbon / fossil %                                                                                       | Stacked bar or donut with labels                 |
+| Next 48h                              | Forecast intensity, cleanest and dirtiest window highlighted                                                            | Line chart with highlighted band                 |
+| Last 24h                              | Actual vs forecast intensity, with forecast accuracy summary (mean error, bias, share within +/-10%) in the card header | Two-line chart (solid actual, dashed forecast)   |
+| (Stretch) Fuel mix over time          | National fuel shares over the last day or week                                                                          | Stacked area chart (cut from MVP, time is short) |
+| (Stretch) Forecast accuracy over time | Forecast vs actual error over time                                                                                      | Line of error                                    |
 
 ### Regions (`/regions`, `/regions/[id]`)
 
-| Visual | Metric | Chart type |
-|---|---|---|
-| Regions table | Forecast intensity, index, tier, renewable % | Sortable, filterable table with tier badges |
-| Preview panel (side panel beside the table) | One region's forecast and fuel mix | 48h sparkline plus small stacked bar, with an "Open full detail" link to `/regions/[id]` |
-| Region detail | Forecast intensity and fuel mix over time | Line plus stacked area |
-| Region gap | Cleanest vs dirtiest region | Summary tile |
-| (Stretch) Map | Forecast intensity by region | Choropleth |
+| Visual                                      | Metric                                       | Chart type                                                                               |
+| ------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Regions table                               | Forecast intensity, index, tier, renewable % | Sortable, filterable table with tier badges                                              |
+| Preview panel (side panel beside the table) | One region's forecast and fuel mix           | 48h sparkline plus small stacked bar, with an "Open full detail" link to `/regions/[id]` |
+| Region detail                               | Forecast intensity and fuel mix over time    | Line plus stacked area                                                                   |
+| Region gap                                  | Cleanest vs dirtiest region                  | Summary tile                                                                             |
+| (Stretch) Map                               | Forecast intensity by region                 | Choropleth                                                                               |
 
 Statistics over time (averages, ranges) are drawn from the data stored in Postgres, not just the API's `/stats` endpoint.
 

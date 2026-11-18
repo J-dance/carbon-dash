@@ -8,6 +8,13 @@
       "when": 1794936257299,
       "tag": "0000_good_queen_noir",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795015802443,
+      "tag": "0001_seed_regions",
+      "breakpoints": true
     }
   ]
 }

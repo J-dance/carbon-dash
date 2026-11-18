@@ -1,0 +1,20 @@
+-- Static reference data copied from the API’s /regional. Ids 15–18 are aggregates (nations and GB), not distribution regions. --
+INSERT INTO "regions" ("id", "short_name", "dno_name", "kind") VALUES
+	(1, 'North Scotland', 'Scottish Hydro Electric Power Distribution', 'dno'),
+	(2, 'South Scotland', 'SP Distribution', 'dno'),
+	(3, 'North West England', 'Electricity North West', 'dno'),
+	(4, 'North East England', 'NPG North East', 'dno'),
+	(5, 'Yorkshire', 'NPG Yorkshire', 'dno'),
+	(6, 'North Wales & Merseyside', 'SP Manweb', 'dno'),
+	(7, 'South Wales', 'WPD South Wales', 'dno'),
+	(8, 'West Midlands', 'WPD West Midlands', 'dno'),
+	(9, 'East Midlands', 'WPD East Midlands', 'dno'),
+	(10, 'East England', 'UKPN East', 'dno'),
+	(11, 'South West England', 'WPD South West', 'dno'),
+	(12, 'South England', 'SSE South', 'dno'),
+	(13, 'London', 'UKPN London', 'dno'),
+	(14, 'South East England', 'UKPN South East', 'dno'),
+	(15, 'England', 'England', 'nation'),
+	(16, 'Scotland', 'Scotland', 'nation'),
+	(17, 'Wales', 'Wales', 'nation'),
+	(18, 'GB', 'GB', 'gb');

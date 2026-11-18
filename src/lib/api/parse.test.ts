@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest'
-import { parseGeneration, parseIntensity } from './parse'
-import { FUELS, INDEXES, type GenerationMix, type NationalIntensity } from './types'
+import { parseGeneration, parseIntensity, parseIntensityRange, parseRegionalRange } from './parse'
+import {
+	FUELS,
+	INDEXES,
+	type GenerationMix,
+	type NationalIntensity,
+	type RegionalReading
+} from './types'
 
 const validPeriod = {
 	from: '2026-11-17T12:00Z',
@@ -290,6 +296,159 @@ describe('parseGeneration', () => {
 			})
 
 			expect(() => parseGeneration(without)).toThrow('missing: solar, wind')
+		})
+	})
+})
+
+describe('parseIntensityRange', () => {
+	test('parses every period, in the order the API sent them', () => {
+		const later = {
+			from: '2026-11-17T12:30Z',
+			to: '2026-11-17T13:00Z',
+			intensity: { forecast: 120, actual: null, index: 'high' }
+		}
+
+		expect(parseIntensityRange({ data: [validPeriod, later] })).toStrictEqual([
+			expected,
+			{ from: later.from, to: later.to, forecast: 120, actual: null, index: 'high' }
+		])
+	})
+
+	test('returns an empty list when the range has no periods', () => {
+		expect(parseIntensityRange({ data: [] })).toStrictEqual([])
+	})
+
+	test('rejects a response with no "data" list', () => {
+		expect(() => parseIntensityRange({})).toThrow('"data" to be an array')
+	})
+
+	test('rejects a period with the wrong shape, as parseIntensity does', () => {
+		const badIndex = { data: [{ ...validPeriod, intensity: { forecast: 1, actual: 1, index: 'huge' } }] }
+
+		expect(() => parseIntensityRange(badIndex)).toThrow('"index" to be an intensity index')
+	})
+})
+
+// A /regional/intensity range response is grouped by period, with every region inside it.
+// The parser flattens that into one reading per region per period.
+
+/** One region inside a period. `overrides` changes fields of that region's object. */
+function regionItem(regionId: number, overrides: Record<string, unknown> = {}) {
+	return {
+		regionid: regionId,
+		dnoregion: 'Some DNO',
+		shortname: 'Some region',
+		intensity: { forecast: 50, index: 'low' },
+		generationmix: validMix,
+		...overrides
+	}
+}
+
+/** A regional range response with one period holding the given regions. */
+function regionalResponse(regions: unknown[]) {
+	return { data: [{ from: '2026-11-17T12:00Z', to: '2026-11-17T12:30Z', regions }] }
+}
+
+describe('parseRegionalRange', () => {
+	describe('valid responses', () => {
+		test('flattens each region of each period into one reading', () => {
+			const json = {
+				data: [
+					{ from: '2026-11-17T12:00Z', to: '2026-11-17T12:30Z', regions: [regionItem(1), regionItem(2)] },
+					{ from: '2026-11-17T12:30Z', to: '2026-11-17T13:00Z', regions: [regionItem(1), regionItem(2)] }
+				]
+			}
+
+			const readings = parseRegionalRange(json)
+
+			expect(readings.map((reading) => [reading.regionId, reading.from])).toStrictEqual([
+				[1, '2026-11-17T12:00Z'],
+				[2, '2026-11-17T12:00Z'],
+				[1, '2026-11-17T12:30Z'],
+				[2, '2026-11-17T12:30Z']
+			])
+		})
+
+		test('parses a region into a flat reading with its fuel mix', () => {
+			const reading: RegionalReading = {
+				regionId: 13,
+				from: '2026-11-17T12:00Z',
+				to: '2026-11-17T12:30Z',
+				forecast: 50,
+				index: 'low',
+				mix: expectedGeneration.mix
+			}
+
+			expect(parseRegionalRange(regionalResponse([regionItem(13)]))).toStrictEqual([reading])
+		})
+
+		test('keeps a forecast of zero', () => {
+			const json = regionalResponse([regionItem(1, { intensity: { forecast: 0, index: 'very low' } })])
+
+			expect(parseRegionalRange(json)[0].forecast).toBe(0)
+		})
+
+		test('reads the fuel mix by name, whatever order the fuels arrive in', () => {
+			const json = regionalResponse([regionItem(1, { generationmix: [...validMix].reverse() })])
+
+			expect(parseRegionalRange(json)[0].mix).toStrictEqual(expectedGeneration.mix)
+		})
+
+		test('returns an empty list when the range has no periods', () => {
+			expect(parseRegionalRange({ data: [] })).toStrictEqual([])
+		})
+	})
+
+	describe('invalid responses', () => {
+		const invalidCases: [name: string, input: unknown, message: string][] = [
+			['the response is null', null, 'the response to be an object'],
+			['"data" is missing', {}, '"data" to be an array'],
+			['a period is null', { data: [null] }, 'a period to be an object'],
+			['"from" is missing', { data: [{ to: '2026-11-17T12:30Z', regions: [] }] }, '"from" to be a string'],
+			[
+				'"regions" is missing',
+				{ data: [{ from: '2026-11-17T12:00Z', to: '2026-11-17T12:30Z' }] },
+				'"regions" to be an array'
+			],
+			['a region is null', regionalResponse([null]), 'a region to be an object'],
+			['"regionid" is a string', regionalResponse([regionItem(1, { regionid: '1' })]), '"regionid" to be a number'],
+			[
+				'"intensity" is missing',
+				regionalResponse([regionItem(1, { intensity: undefined })]),
+				'"intensity" to be an object'
+			],
+			[
+				'"forecast" is null',
+				regionalResponse([regionItem(1, { intensity: { forecast: null, index: 'low' } })]),
+				'"forecast" to be a number'
+			],
+			[
+				'"index" is an unknown word',
+				regionalResponse([regionItem(1, { intensity: { forecast: 1, index: 'huge' } })]),
+				'"index" to be an intensity index'
+			],
+			[
+				'"generationmix" is missing',
+				regionalResponse([regionItem(1, { generationmix: undefined })]),
+				'"generationmix" to be an array'
+			],
+			[
+				'a fuel is unknown',
+				regionalResponse([regionItem(1, { generationmix: [{ fuel: 'fusion', perc: 1 }] })]),
+				'"fuel" to be a known fuel'
+			]
+		]
+
+		test.each(invalidCases)('rejects a response where %s', (_name, input, message) => {
+			expect(() => parseRegionalRange(input)).toThrow(message)
+		})
+
+		test('names the fuel missing from a region', () => {
+			const without = validMix.filter((item) => item.fuel !== 'wind')
+
+			expect(() => parseRegionalRange(regionalResponse([regionItem(1, { generationmix: without })]))).toThrow(
+				'missing: wind'
+			)
 		})
 	})
 })

@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { CarbonApiError, getCurrentGeneration, getCurrentIntensity } from './client'
+import {
+	CarbonApiError,
+	getCurrentGeneration,
+	getCurrentIntensity,
+	getIntensityRange,
+	getRegionalRange
+} from './client'
 import type { GenerationMix, NationalIntensity } from './types'
 
 // HOW THESE TESTS WORK
@@ -220,5 +226,90 @@ describe.each(clients)('$name', ({ get, path, body, expected }) => {
 			// which proves the client neither wrapped nor replaced it.
 			await expect(get(fetchFn)).rejects.toBe(networkError)
 		})
+	})
+})
+
+// The range functions take a start and end date, so they are tested apart from the two
+// above, which are called with no arguments.
+describe('range requests', () => {
+	// Whole seconds and milliseconds in the dates prove the client cuts them off, because the
+	// API writes its own timestamps as `2026-11-10T00:00Z`.
+	const from = new Date('2026-11-10T00:00:30.500Z')
+	const to = new Date('2026-11-12T06:30:00Z')
+
+	const regionalBody = {
+		data: [
+			{
+				from: '2026-11-09T23:30Z',
+				to: '2026-11-10T00:00Z',
+				regions: [
+					{
+						regionid: 1,
+						intensity: { forecast: 0, index: 'very low' },
+						generationmix: generationBody.data.generationmix
+					}
+				]
+			}
+		]
+	}
+
+	test('getIntensityRange requests the range, written the way the API writes dates', async () => {
+		const fetchFn = fakeFetch({ data: [] })
+		await getIntensityRange(from, to, fetchFn)
+
+		expect(fetchFn.mock.calls[0][0]).toBe(
+			'https://api.carbonintensity.org.uk/intensity/2026-11-10T00:00Z/2026-11-12T06:30Z'
+		)
+	})
+
+	test('getIntensityRange returns every parsed period', async () => {
+		const fetchFn = fakeFetch(intensityBody)
+
+		await expect(getIntensityRange(from, to, fetchFn)).resolves.toStrictEqual([expectedIntensity])
+	})
+
+	test('getRegionalRange requests the range, written the way the API writes dates', async () => {
+		const fetchFn = fakeFetch({ data: [] })
+		await getRegionalRange(from, to, fetchFn)
+
+		expect(fetchFn.mock.calls[0][0]).toBe(
+			'https://api.carbonintensity.org.uk/regional/intensity/2026-11-10T00:00Z/2026-11-12T06:30Z'
+		)
+	})
+
+	test('getRegionalRange returns one parsed reading per region per period', async () => {
+		const readings = await getRegionalRange(from, to, fakeFetch(regionalBody))
+
+		expect(readings).toStrictEqual([
+			{
+				regionId: 1,
+				from: '2026-11-09T23:30Z',
+				to: '2026-11-10T00:00Z',
+				forecast: 0,
+				index: 'very low',
+				mix: expectedGeneration.mix
+			}
+		])
+	})
+
+	test.each([
+		['getIntensityRange', getIntensityRange],
+		['getRegionalRange', getRegionalRange]
+	])('%s sends a timeout signal', async (_name, get) => {
+		const fetchFn = fakeFetch({ data: [] })
+		await get(from, to, fetchFn)
+
+		// Only checks that a signal is attached: waiting out a real timeout in a test is not worth it.
+		expect(fetchFn.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal)
+	})
+
+	test.each([
+		['getIntensityRange', getIntensityRange],
+		['getRegionalRange', getRegionalRange]
+	])('%s throws a CarbonApiError carrying the status of a failed request', async (_name, get) => {
+		const error = await get(from, to, fakeFetch({}, 400)).catch((e: unknown) => e)
+
+		expect(error).toBeInstanceOf(CarbonApiError)
+		expect(error).toMatchObject({ status: 400 })
 	})
 })

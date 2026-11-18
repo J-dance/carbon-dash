@@ -32,3 +32,16 @@ export interface GenerationMix {
 	to: string
 	mix: Record<Fuel, number>
 }
+
+/**
+ * One region's forecast and fuel mix for one 30-minute period. The regional endpoints have
+ * no `actual`, unlike the national one. `regionId` is 1-18, where 15-18 are aggregates.
+ */
+export interface RegionalReading {
+	regionId: number
+	from: string
+	to: string
+	forecast: number
+	index: Index
+	mix: Record<Fuel, number>
+}

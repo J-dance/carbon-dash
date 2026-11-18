@@ -4,7 +4,8 @@ import {
 	type Fuel,
 	type GenerationMix,
 	type Index,
-	type NationalIntensity
+	type NationalIntensity,
+	type RegionalReading
 } from './types'
 
 type JsonObject = Record<string, unknown>
@@ -112,8 +113,8 @@ export function parseIntensity(json: unknown): NationalIntensity {
 
 /**
  * Parse one period from the API into a flat NationalIntensity. Separate from
- * parseIntensity because the range endpoints in step 3 return many of these
- * periods in the same shape, so they can reuse it.
+ * parseIntensity because the range endpoint returns many of these periods in the
+ * same shape, so parseIntensityRange reuses it.
  */
 function parseIntensityPeriod(value: unknown): NationalIntensity {
 	const period = asRecord(value, 'a period')
@@ -129,15 +130,21 @@ function parseIntensityPeriod(value: unknown): NationalIntensity {
 }
 
 /**
- * Parse the response of `/generation`: the fuel mix for the current period. Unlike
- * `/intensity`, `data` is a single object, not an array.
+ * Parse the response of `/intensity/{from}/{to}`: every period in the range, oldest first.
+ * An empty list is valid here, a range can contain no periods.
  */
-export function parseGeneration(json: unknown): GenerationMix {
-	const data = readRecord(asRecord(json, 'the response'), 'data')
+export function parseIntensityRange(json: unknown): NationalIntensity[] {
+	return readArray(asRecord(json, 'the response'), 'data').map(parseIntensityPeriod)
+}
 
+/**
+ * Read the `generationmix` list of `obj` into a record keyed by fuel. Shared by `/generation`
+ * and the regional endpoints, which describe the fuel mix in the same way.
+ */
+function readFuelMix(obj: JsonObject): Record<Fuel, number> {
 	// Filled by fuel name, never by position: the order of fuels in the JSON is not stable.
 	const mix: Partial<Record<Fuel, number>> = {}
-	for (const item of readArray(data, 'generationmix')) {
+	for (const item of readArray(obj, 'generationmix')) {
 		const entry = asRecord(item, 'a "generationmix" item')
 		// A fuel that appears twice overwrites the earlier value, so the latest one wins.
 		mix[readFuel(entry, 'fuel')] = readNumber(entry, 'perc')
@@ -148,9 +155,50 @@ export function parseGeneration(json: unknown): GenerationMix {
 		throw new Error(`Expected "generationmix" to include every fuel, missing: ${missing.join(', ')}`)
 	}
 
+	return mix
+}
+
+/**
+ * Parse the response of `/generation`: the fuel mix for the current period. Unlike
+ * `/intensity`, `data` is a single object, not an array.
+ */
+export function parseGeneration(json: unknown): GenerationMix {
+	const data = readRecord(asRecord(json, 'the response'), 'data')
+
 	return {
 		from: readString(data, 'from'),
 		to: readString(data, 'to'),
-		mix
+		mix: readFuelMix(data)
 	}
+}
+
+/**
+ * Parse the response of `/regional/intensity/{from}/{to}`. The API groups it by period, with
+ * every region inside each period. This flattens it into one reading per region per period,
+ * which is the shape of the `readings` table.
+ */
+export function parseRegionalRange(json: unknown): RegionalReading[] {
+	const readings: RegionalReading[] = []
+
+	for (const item of readArray(asRecord(json, 'the response'), 'data')) {
+		const period = asRecord(item, 'a period')
+		const from = readString(period, 'from')
+		const to = readString(period, 'to')
+
+		for (const regionItem of readArray(period, 'regions')) {
+			const region = asRecord(regionItem, 'a region')
+			const intensity = readRecord(region, 'intensity')
+
+			readings.push({
+				regionId: readNumber(region, 'regionid'),
+				from,
+				to,
+				forecast: readNumber(intensity, 'forecast'),
+				index: readIndex(intensity, 'index'),
+				mix: readFuelMix(region)
+			})
+		}
+	}
+
+	return readings
 }

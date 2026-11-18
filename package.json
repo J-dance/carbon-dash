@@ -20,6 +20,7 @@
 		"db:down": "docker compose down",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
+		"db:backfill": "tsx --env-file=.env scripts/backfill.ts",
 		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {

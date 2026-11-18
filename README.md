@@ -33,7 +33,7 @@ Each step lists the Svelte concepts it is meant to teach.
   - [x] Postgres in Docker and Drizzle setup
   - [x] Schema: `regions`, `readings` and `national_intensity` (see Data design)
   - [x] Migrations (Drizzle), with the 18 regions seeded by migration `0001`
-  - [ ] 90-day backfill script
+  - [x] 90-day backfill script (see Backfill)
   - [ ] Lazy refresh: re-fetch when the newest reading is over 30 minutes old, with a single-flight guard
   - [ ] `+server.ts` endpoints with query params (range, region, tier)
   - [ ] Tier scores computed in SQL (`NTILE(3)`)
@@ -64,6 +64,7 @@ pnpm install
 cp .env.example .env   # local database settings, matches docker-compose.yml
 pnpm db:up             # start Postgres 17 in Docker (host port 5433)
 pnpm db:migrate        # create the tables and seed the 18 regions
+pnpm db:backfill       # load the last 90 days of data (about 30 seconds, see Backfill)
 pnpm dev
 ```
 
@@ -71,7 +72,43 @@ pnpm dev
 - Postgres uses host port 5433 so it does not clash with a Postgres already running on 5432 (for example from Homebrew).
 - `pnpm db:migrate` applies only the migrations in `drizzle/` that this database has not run yet. Migration `0001` inserts the regions, so they are static reference data copied from the API's `/regional` endpoint, not fetched at runtime.
 - `pnpm db:studio` opens Drizzle Studio to browse the tables.
-- The backfill script comes with the rest of step 3 and will be documented here.
+
+## Backfill
+
+`pnpm db:backfill` fills the database with the last 90 days of data, so the app has history to work from straight away (the 30-day average, the 7 and 30 day tier periods, forecast accuracy). The code is in `scripts/backfill.ts`, with the fetching and storing in `src/lib/server/ingest/`.
+
+### What it does
+
+1. Splits the last 90 days into chunks of at most 13 days. The API rejects a regional range of 14 days or more with a 400, so 13 is the safe size (see Data quirks).
+2. For each chunk, one after the other with a 0.5 second pause between chunks: fetches all 18 regions (`/regional/intensity/{from}/{to}`) and the national intensity (`/intensity/{from}/{to}`).
+3. Validates each response in the API client (`src/lib/api/`), then upserts the rows into `readings` and `national_intensity`, in batches of 1,000 because Postgres allows only 65,534 parameters per statement.
+4. Retries a chunk after 1, 2 and 4 seconds if the API answers 429 or a 5xx, then gives up and stops with the error.
+
+For 90 days it stores 77,760 `readings` rows (18 regions x 4,320 periods) and 4,320 `national_intensity` rows, in about 30 seconds. Both endpoints use the same 13-day chunks, so it makes about 14 requests, not the 7 + 3 first planned: one chunk size keeps `ingestRange` simple and the extra national calls are small.
+
+### When it runs
+
+**Only when you run it. Nothing triggers it** (no deploy hook, no cron, and the app never calls it). It is a one-off setup step for each database:
+
+- **Local:** the first time you set up, after `pnpm db:migrate` (see Local setup). It is not needed again unless you reset the database with `docker compose down -v`.
+- **Production (step 7):** once, from your own machine, against the hosted database. Run `pnpm db:migrate` first, then the backfill, with `DATABASE_URL` set to the hosted connection string for that one command (do not put it in a committed file). It runs from your machine rather than the host because it takes longer than many hosts allow a request to run.
+
+After that, **lazy refresh keeps the data current** (not built yet, the next step 3 item): a visit that finds the newest period more than 30 minutes old re-fetches the last 24-48 hours. It does not cover long gaps. If the app sits unused for more than about two days, run the backfill again to fill the gap.
+
+### How to run it
+
+```bash
+pnpm db:up        # Docker Desktop must be running
+pnpm db:migrate   # the regions must exist first: readings.region_id points at them
+pnpm db:backfill
+```
+
+- It needs `tsx`, a dev dependency that runs a TypeScript file directly. It is not part of the deployed app. `pnpm install` is enough to get it.
+- `--env-file=.env` in the `db:backfill` script loads `DATABASE_URL` from the gitignored `.env`, so the script holds no credentials.
+- The script runs outside SvelteKit, so it cannot use `$app/env/private` or `$lib`. It makes its own connection from `process.env.DATABASE_URL`, like `drizzle.config.ts`.
+- **Safe to run again.** Each row is keyed on its region and period (the primary key), so a repeat run overwrites rows instead of adding duplicates. Run twice, the row counts stay the same.
+- To change how far back it goes, change `BACKFILL_DAYS` in `scripts/backfill.ts`. The chunking does not change.
+- If it fails with an error about `readings_region_id_regions_id_fk`, the regions are missing: run `pnpm db:migrate`. If it fails right away with a connection error, Docker or the database is not running.
 
 ## Sections
 
@@ -147,7 +184,7 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
 
 ### Ingest and refresh
 
-- **Backfill:** 90 days, in 14-day chunks, one chunk at a time with a short pause (a few hundred ms). Use the all-regions endpoint (`/regional/intensity/{from}/{to}`, about 4.3 MB per 14 days) rather than per-region calls, plus the national `/intensity` endpoint (31 days per call) into `national_intensity`. About 7 regional and 3 national calls.
+- **Backfill:** 90 days, in 13-day chunks, one chunk at a time with a short pause (500 ms). Use the all-regions endpoint (`/regional/intensity/{from}/{to}`, about 4.7 MB per 13 days) rather than per-region calls, plus the national `/intensity` endpoint into `national_intensity`, using the same chunks. About 7 regional and 7 national calls. See Backfill.
 - **Lazy refresh (no cron):** when the newest stored period is more than 30 minutes old, fetch and upsert. Re-fetch the last 24-48h every time, because `actual` is filled in after a period ends.
 - **Single-flight:** concurrent requests share one in-flight fetch, so a burst of visitors causes one upstream call. Upserts make a duplicate harmless but still wasteful.
 - **Being polite to the API:** it is free and keyless, and I found no published rate limit (not tested on purpose). Fetch sequentially, never `Promise.all` across many chunks. Cache live calls (the 48h forecast) for a few minutes and serve with `Cache-Control`, so most reads hit Postgres. Retry with backoff on 429 and 5xx, with a limited number of attempts.
@@ -160,7 +197,7 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
 - Regional forecasts can be 0 (North Scotland was 0 once), so tiers tie. Use a tiebreak, e.g. renewable share or name
 - All timestamps are UTC. Time-of-day profiles (stretch) probably want Europe/London time, so decide up front
 - The API keeps one `forecast` per period, so forecast accuracy cannot compare 24h-ahead vs 1h-ahead forecasts unless forecasts are snapshotted repeatedly (out of scope)
-- Documented range limits are 14 days for generation and regional ranges, though longer ranges worked in testing. Chunk to 14 days to be safe
+- The regional range limit is documented as 14 days, and a range of exactly 14 days is rejected with a 400 ("greater than 14 days"), while 13 days 23 hours 30 minutes worked (checked against the live API). The response includes the period before the start, which is probably why. Chunk to 13 days. The national range worked at 14 days, and its documented limit is 31
 
 ## Performance tiers (Top / Middle / Bottom)
 

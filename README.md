@@ -30,8 +30,10 @@ Each step lists the Svelte concepts it is meant to teach.
   - [x] National "now" card: intensity, index badge, renewable %
   - [x] Concepts: `+page.server.ts` `load`, TypeScript with Svelte, components and props
 - [ ] **3. Postgres and my own API**
-  - [ ] Schema: `regions`, `readings` and `national_intensity` (see Data design)
-  - [ ] Migrations (Drizzle) and a 90-day backfill script
+  - [x] Postgres in Docker and Drizzle setup
+  - [x] Schema: `regions`, `readings` and `national_intensity` (see Data design)
+  - [x] Migrations (Drizzle), with the 18 regions seeded by migration `0001`
+  - [ ] 90-day backfill script
   - [ ] Lazy refresh: re-fetch when the newest reading is over 30 minutes old, with a single-flight guard
   - [ ] `+server.ts` endpoints with query params (range, region, tier)
   - [ ] Tier scores computed in SQL (`NTILE(3)`)
@@ -61,12 +63,15 @@ Needs Node, pnpm and Docker Desktop.
 pnpm install
 cp .env.example .env   # local database settings, matches docker-compose.yml
 pnpm db:up             # start Postgres 17 in Docker (host port 5433)
+pnpm db:migrate        # create the tables and seed the 18 regions
 pnpm dev
 ```
 
-- `pnpm db:down` stops the database and keeps its data. `docker compose down -v` also deletes the data, which gives a fresh empty database.
+- `pnpm db:down` stops the database and keeps its data. `docker compose down -v` also deletes the data, which gives a fresh empty database (run `pnpm db:up` and `pnpm db:migrate` again afterwards).
 - Postgres uses host port 5433 so it does not clash with a Postgres already running on 5432 (for example from Homebrew).
-- Schema, migrations and the backfill script come with step 3 and will be documented here.
+- `pnpm db:migrate` applies only the migrations in `drizzle/` that this database has not run yet. Migration `0001` inserts the regions, so they are static reference data copied from the API's `/regional` endpoint, not fetched at runtime.
+- `pnpm db:studio` opens Drizzle Studio to browse the tables.
+- The backfill script comes with the rest of step 3 and will be documented here.
 
 ## Sections
 
@@ -107,7 +112,7 @@ Using the Intensity API (`https://api.carbonintensity.org.uk`, no key needed). D
 | `region_id`                                                                       | smallint, FK to `regions` | Part of the primary key                                                 |
 | `period_from`                                                                     | timestamptz               | Part of the primary key. `period_to` is always +30 min, so not stored   |
 | `forecast`                                                                        | smallint                  | gCO2/kWh, the regional forecast                                         |
-| `index`                                                                           | text or enum              | very low, low, moderate, high, very high. Stored as returned by the API |
+| `index`                                                                           | enum                      | very low, low, moderate, high, very high. Stored as returned by the API |
 | `biomass`, `coal`, `imports`, `gas`, `nuclear`, `other`, `hydro`, `solar`, `wind` | numeric(4,1)              | Percent shares of the generation mix                                    |
 
 Primary key (`region_id`, `period_from`) so re-ingesting a period overwrites it. Second index on (`period_from`, `region_id`) for "latest for all regions" and tier queries.
@@ -119,7 +124,7 @@ Primary key (`region_id`, `period_from`) so re-ingesting a period overwrites it.
 | `period_from` | timestamptz        | Primary key                     |
 | `forecast`    | smallint           | gCO2/kWh, the national forecast |
 | `actual`      | smallint, nullable | Null until the period has ended |
-| `index`       | text or enum       | As returned by the API          |
+| `index`       | enum               | As returned by the API          |
 
 **Why two tables:** the all-regions endpoint returns GB (region 18), but its forecast is not the same data as the national endpoint. Checked over 13 days (625 periods): the forecast differed in 579 of them, and the index in 29. The regional endpoint also never returns `actual`. So the national call cannot be dropped: it is the only source of `actual`, and forecast accuracy must compare the national forecast with the national actual. Region 18 stays in `readings` for its fuel mix: checked over the same 625 periods, its mix is identical to `/generation`, so the national fuel mix comes from the regional call and no separate `/generation` backfill is needed. Ignore region 18's `forecast` and `index` columns for national analytics (use `national_intensity`).
 

@@ -1,4 +1,4 @@
-import { FUELS, type Fuel, type GenerationMix } from "#lib/api/types.ts"
+import { FUELS, type Fuel } from "#lib/api/types.ts"
 import type { FuelGroup } from "./types"
 /**
  * Which group each fuel counts towards in the fuel mix card.
@@ -22,7 +22,7 @@ export const FUEL_GROUPS: Record<Fuel, FuelGroup> = {
  * Adds up the percentage of each fuel into its group (see FUEL_GROUPS).
  * Totals are not rounded: round where they are displayed.
  */
-export function groupMix(mix: GenerationMix['mix']): Record<FuelGroup, number> {
+export function groupMix(mix: Record<Fuel, number>): Record<FuelGroup, number> {
 	const totals: Record<FuelGroup, number> = {
 		renewable: 0,
 		lowCarbon: 0,

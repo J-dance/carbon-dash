@@ -26,13 +26,6 @@ export interface NationalIntensity {
 	index: Index
 }
 
-/** The national fuel mix for one 30-minute period, as percentages keyed by fuel. */
-export interface GenerationMix {
-	from: string
-	to: string
-	mix: Record<Fuel, number>
-}
-
 /**
  * One region's forecast and fuel mix for one 30-minute period. The regional endpoints have
  * no `actual`, unlike the national one. `regionId` is 1-18, where 15-18 are aggregates.

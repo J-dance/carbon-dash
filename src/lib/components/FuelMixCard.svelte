@@ -1,10 +1,10 @@
 <script lang="ts">
 	import Card from "#lib/components/Card.svelte";
-	import type { GenerationMix } from "#lib/api/types.ts";
+	import type { Fuel } from "#lib/api/types.ts";
 	import { groupMix } from "#lib/metrics/fuel-groups.ts";
 	import type { FuelGroup } from "#lib/metrics/types.ts";
 
-	let { mix }: { mix: GenerationMix["mix"] } = $props();
+	let { mix }: { mix: Record<Fuel, number> } = $props();
 
 	// Order and wording of the groups, shared by the bar and the legend.
 	const GROUPS: { group: FuelGroup; label: string }[] = [

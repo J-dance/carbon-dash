@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest'
-import type { Fuel, GenerationMix } from '#lib/api/types.ts'
+import type { Fuel } from '#lib/api/types.ts'
 import { groupMix } from './fuel-groups'
 import type { FuelGroup } from './types'
 
-const zeroMix: GenerationMix['mix'] = {
+const zeroMix: Record<Fuel, number> = {
 	biomass: 0,
 	coal: 0,
 	imports: 0,
@@ -16,7 +16,7 @@ const zeroMix: GenerationMix['mix'] = {
 }
 
 /** A realistic mix that adds up to 100%. The group totals in the test are worked out by hand from it. */
-const sampleMix: GenerationMix['mix'] = {
+const sampleMix: Record<Fuel, number> = {
 	biomass: 5.1,
 	coal: 0,
 	imports: 9.5,

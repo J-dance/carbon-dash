@@ -67,7 +67,7 @@ Keep server-only code (database, secrets, `$env/static/private`) under `src/lib/
 - Handle loading, empty and error states for every data-driven view, and say what the user can do next.
 - Keep logic that is easy to test (tier scoring, forecast accuracy, fuel-name mapping) in plain TypeScript functions, apart from components.
 - Follow the existing formatting (tabs, as in the current files). Match the surrounding style.
-- Constants for magic values (region ID ranges, the 30-minute refresh threshold, the 31-day stats limit).
+- Constants for magic values (region ID ranges, the 60-minute refresh threshold, the 31-day stats limit).
 
 ## Accessibility
 

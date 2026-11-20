@@ -36,6 +36,10 @@ function minutesAgo(minutes: number): Date {
 	return new Date(NOW.getTime() - minutes * 60 * 1000)
 }
 
+// How old a newest period must be to count as stale: over 60 minutes (see `isStale`). Used
+// wherever a test needs stored data that is stale, so the tests do not repeat a bare number.
+const STALE_AGE_MINUTES = 75
+
 // ---------------------------------------------------------------------------------------------
 // isStale: a plain function, so it needs none of the stand-ins.
 // ---------------------------------------------------------------------------------------------
@@ -45,16 +49,19 @@ describe('isStale', () => {
 		expect(isStale(null, NOW)).toBe(true)
 	})
 
-	test('is fresh when the newest period is under 30 minutes old', () => {
-		expect(isStale(minutesAgo(29), NOW)).toBe(false)
+	test('is fresh when the newest period started 45 minutes ago', () => {
+		// The API only serves a period once it has ended, so the newest one it can have always
+		// started more than 30 minutes ago. This is as fresh as the data gets, so it must not
+		// count as stale.
+		expect(isStale(minutesAgo(45), NOW)).toBe(false)
 	})
 
-	test('is fresh when the newest period is exactly 30 minutes old', () => {
-		expect(isStale(minutesAgo(30), NOW)).toBe(false)
+	test('is fresh when the newest period is exactly 60 minutes old', () => {
+		expect(isStale(minutesAgo(60), NOW)).toBe(false)
 	})
 
-	test('is stale when the newest period is over 30 minutes old', () => {
-		expect(isStale(minutesAgo(31), NOW)).toBe(true)
+	test('is stale when the newest period is over 60 minutes old', () => {
+		expect(isStale(minutesAgo(61), NOW)).toBe(true)
 	})
 
 	test('is fresh when the newest period is in the future', () => {
@@ -105,7 +112,7 @@ describe('refreshIfStale', () => {
 
 	beforeEach(() => {
 		// Clock: freeze it at NOW. The code reads the clock (`new Date()`, `Date.now()`), so a
-		// real clock would make "45 minutes old" depend on when the test runs. Tests move time
+		// real clock would make "75 minutes old" depend on when the test runs. Tests move time
 		// forward by hand with `vi.advanceTimersByTime`, which takes no real time.
 		vi.useFakeTimers()
 		vi.setSystemTime(NOW)
@@ -113,11 +120,11 @@ describe('refreshIfStale', () => {
 		// Fetch: forget what earlier tests told the fake to do, and how often it was called.
 		ingestRange.mockReset()
 
-		// Database: by default the newest stored period is 45 minutes old, which is stale (over
-		// 30). A test that wants fresh or empty data changes `stored.newest`. The object below
+		// Database: by default the newest stored period is STALE_AGE_MINUTES old, which is stale.
+		// A test that wants fresh or empty data changes `stored.newest`. The object below
 		// is just enough of Drizzle's `db.select(...).from(...)` for `newestStoredPeriod`, and
 		// it reads `stored.newest` when called, so changing it mid-test takes effect.
-		stored = { newest: minutesAgo(45) }
+		stored = { newest: minutesAgo(STALE_AGE_MINUTES) }
 		db = { select: () => ({ from: async () => [{ newest: stored.newest }] }) } as unknown as Database
 
 		// Console: the failure tests trigger `console.error` on purpose. Hide it so the test output
@@ -276,7 +283,7 @@ describe('refreshIfStale', () => {
 			const result = await visitor
 
 			// Check: the visitor was not kept waiting. They got the old data, marked stale.
-			expect(result).toStrictEqual({ newestPeriod: minutesAgo(45), isStale: true })
+			expect(result).toStrictEqual({ newestPeriod: minutesAgo(STALE_AGE_MINUTES), isStale: true })
 
 			// Act: the slow fetch finally finishes.
 			finishFetch()
@@ -300,7 +307,7 @@ describe('refreshIfStale', () => {
 			const result = await refreshIfStale(db)
 
 			// Check: the visitor still gets the stored data, marked stale, and the error is logged.
-			expect(result).toStrictEqual({ newestPeriod: minutesAgo(45), isStale: true })
+			expect(result).toStrictEqual({ newestPeriod: minutesAgo(STALE_AGE_MINUTES), isStale: true })
 			expect(console.error).toHaveBeenCalledTimes(1)
 		})
 
@@ -315,7 +322,7 @@ describe('refreshIfStale', () => {
 
 			// Check: the second visitor did not trigger a fetch, and still got the old data.
 			expect(ingestRange).toHaveBeenCalledTimes(1)
-			expect(result).toStrictEqual({ newestPeriod: minutesAgo(45), isStale: true })
+			expect(result).toStrictEqual({ newestPeriod: minutesAgo(STALE_AGE_MINUTES), isStale: true })
 		})
 
 		test('counts the minute from when a slow attempt ended, not when it started', async () => {

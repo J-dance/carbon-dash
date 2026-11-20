@@ -3,7 +3,9 @@ import { nationalIntensity } from '../db/schema'
 import { splitDateRange, type DateRange } from './chunks'
 import { ingestRange, MAX_INGEST_RANGE_DAYS, type Database } from './ingest'
 
-const STALE_AFTER_MS = 30 * 60 * 1000 // 30 minutes
+// The API only serves a period once it has ended, so the newest period it can have started
+// 30 to 60 minutes ago. Anything older than 60 means a whole period is missing.
+const STALE_AFTER_MS = 60 * 60 * 1000 // 60 minutes
 const REFRESH_WINDOW_MS = 48 * 60 * 60 * 1000 // 48 hours
 // How far back a refresh reaches to fill a gap. Matches the backfill. Older data needs the
 // backfill script (see the README, Backfill).
@@ -36,9 +38,11 @@ async function newestStoredPeriod(db: Database): Promise<Date | null> {
 }
 
 /**
- * Whether stored data is old enough to refresh. The newest period starts at most 30 minutes
- * before it ends, so a start older than that means a whole period is missing. Takes `now` as
- * a parameter, instead of reading the clock, so a test can pass fixed dates.
+ * Whether stored data is old enough to refresh. A period only shows up in the API after it
+ * has ended, so the newest one available started 30 to 60 minutes ago. A start older than 60
+ * minutes means a whole period is missing. A 30-minute limit would be wrong, because it would
+ * always be exceeded: even the newest available period started more than 30 minutes ago.
+ * Takes `now` as a parameter, instead of reading the clock, so a test can pass fixed dates.
  */
 export function isStale(newestPeriod: Date | null, now: Date): boolean {
 	return newestPeriod === null || now.getTime() - newestPeriod.getTime() > STALE_AFTER_MS
@@ -108,7 +112,7 @@ function waitAtMost(
 }
 
 /**
- * Refresh the stored data if the newest stored period is more than 30 minutes old, filling
+ * Refresh the stored data if the newest stored period is more than 60 minutes old, filling
  * any gap since the last visit (see `refreshRange`). Callers that arrive while a refresh is
  * running share it, so a burst of visitors makes one upstream call, and a refresh is tried at
  * most once a minute, so a failing API is not hit by every visitor. No visitor waits more than

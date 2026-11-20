@@ -34,7 +34,7 @@ Each step lists the Svelte concepts it is meant to teach.
   - [x] Schema: `regions`, `readings` and `national_intensity` (see Data design)
   - [x] Migrations (Drizzle), with the 18 regions seeded by migration `0001`
   - [x] 90-day backfill script (see Backfill)
-  - [x] Lazy refresh: re-fetch when the newest reading is over 30 minutes old, with a single-flight guard (`refreshIfStale` in `src/lib/server/ingest/lazyRefresh.ts`, built and tested; the endpoints below call it)
+  - [x] Lazy refresh: re-fetch when the newest reading is over 60 minutes old, with a single-flight guard (`refreshIfStale` in `src/lib/server/ingest/lazyRefresh.ts`, built and tested; the endpoints below call it)
   - [ ] `+server.ts` endpoints with query params (range, region, tier)
   - [ ] Tier scores computed in SQL (`NTILE(3)`)
   - [ ] Concepts: server routes, `$env`, `$lib`, form actions if needed
@@ -94,7 +94,7 @@ For 90 days it stores 77,760 `readings` rows (18 regions x 4,320 periods) and 4,
 - **Local:** the first time you set up, after `pnpm db:migrate` (see Local setup). It is not needed again unless you reset the database with `docker compose down -v`.
 - **Production (step 7):** once, from your own machine, against the hosted database. Run `pnpm db:migrate` first, then the backfill, with `DATABASE_URL` set to the hosted connection string for that one command (do not put it in a committed file). It runs from your machine rather than the host because it takes longer than many hosts allow a request to run.
 
-After that, **lazy refresh keeps the data current** (see Data design, Ingest and refresh): a visit that finds the newest period more than 30 minutes old re-fetches from the newest stored period, or the last 48 hours if that is more recent. It fills gaps of up to 90 days by itself, in pieces, in the background if it takes longer than 5 seconds (about 30 seconds for a full 90 days). Run the backfill again only for a gap longer than 90 days, or after resetting the database.
+After that, **lazy refresh keeps the data current** (see Data design, Ingest and refresh): a visit that finds the newest period more than 60 minutes old re-fetches from the newest stored period, or the last 48 hours if that is more recent. It fills gaps of up to 90 days by itself, in pieces, in the background if it takes longer than 5 seconds (about 30 seconds for a full 90 days). Run the backfill again only for a gap longer than 90 days, or after resetting the database.
 
 ### How to run it
 
@@ -209,7 +209,8 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
 ### Ingest and refresh
 
 - **Backfill:** 90 days, in 13-day chunks, one chunk at a time with a short pause (500 ms). Use the all-regions endpoint (`/regional/intensity/{from}/{to}`, about 4.7 MB per 13 days) rather than per-region calls, plus the national `/intensity` endpoint into `national_intensity`, using the same chunks. About 7 regional and 7 national calls. See Backfill.
-- **Lazy refresh (no cron):** `refreshIfStale` in `src/lib/server/ingest/lazyRefresh.ts`. When the newest stored `national_intensity` period started more than 30 minutes ago, it fetches and upserts. Nothing is fetched while nobody visits, which matters for a project that may sit unvisited for months.
+- **Lazy refresh (no cron):** `refreshIfStale` in `src/lib/server/ingest/lazyRefresh.ts`. When the newest stored `national_intensity` period started more than 60 minutes ago, it fetches and upserts. Nothing is fetched while nobody visits, which matters for a project that may sit unvisited for months.
+  - **Why 60 minutes, not 30:** the API only serves a period once it has ended (checked against the live API on 2026-11-20: at 15:15 UTC a range ending 15:20 stopped at the 14:30-15:00 period). So the newest period available has always started 30 to 60 minutes ago. A 30-minute limit was always exceeded, so every visit looked stale and tried a refresh, and the page would show "data from ..." even with the freshest data there is. Over 60 minutes means a whole period is missing. Not measured: how long after a period ends the API publishes it. If there is a delay, `isStale` is true for a few minutes after each period ends, which costs at most one refresh a minute (the cooldown).
   - **What it fetches:** the last 48 hours (`actual` is filled in after a period ends), or from the newest stored period if that is older. Without that, a visit after a quiet spell would leave a hole behind data that then looks fresh. It reaches back at most 90 days, the same as the backfill, in pieces of 13 days (the API's range limit) with a 0.5 second pause between them. A gap longer than 90 days, or an empty database, needs `pnpm db:backfill`.
   - **Single-flight:** visitors who arrive during a refresh share it, so a burst of visitors causes one upstream call. The guard is a variable in the server process, so it relies on the app running as one long-lived server (see Hosting). Upserts keep a duplicate fetch harmless (rows are keyed on region and period), but it would still waste a call.
   - **Cooldown:** at most one attempt a minute, counted from when the last attempt ended. A failing API is then not hit by every visitor, a slow attempt is not retried the moment it fails, and nothing is refetched over and over when the API has not published the newest period yet.

@@ -1,9 +1,15 @@
 import { max } from 'drizzle-orm'
 import { nationalIntensity } from '../db/schema'
-import { ingestRange, type Database } from './ingest'
+import { splitDateRange, type DateRange } from './chunks'
+import { ingestRange, MAX_INGEST_RANGE_DAYS, type Database } from './ingest'
 
 const STALE_AFTER_MS = 30 * 60 * 1000 // 30 minutes
 const REFRESH_WINDOW_MS = 48 * 60 * 60 * 1000 // 48 hours
+// How far back a refresh reaches to fill a gap. Matches the backfill. Older data needs the
+// backfill script (see the README, Backfill).
+const MAX_CATCH_UP_MS = 90 * 24 * 60 * 60 * 1000 // 90 days
+// A short rest between API calls when a gap needs several, as in the backfill script.
+const PAUSE_BETWEEN_CHUNKS_MS = 500
 const REFRESH_COOLDOWN_MS = 60 * 1000 // 1 minute
 // The API client allows a range request 60 seconds, so a hung API could otherwise keep every
 // visitor waiting for minutes. After this long a visitor gets the stored data instead.
@@ -43,12 +49,35 @@ async function readStoredState(db: Database): Promise<StoredState> {
 	return { newestPeriod, isStale: isStale(newestPeriod, new Date()) }
 }
 
-async function refresh(db: Database): Promise<StoredState> {
-	const to = new Date()
-	const from = new Date(to.getTime() - REFRESH_WINDOW_MS)
+/**
+ * The time range a refresh should fetch. Normally the last 48 hours, because `actual` values
+ * arrive after a period ends. If the newest stored period is older than that (nobody visited
+ * for a while), it starts there instead, so the gap is filled and not left as a hole behind
+ * fresh-looking data. Never reaches back further than MAX_CATCH_UP_MS.
+ */
+export function refreshRange(newestPeriod: Date | null, now: Date): DateRange {
+	const windowStart = now.getTime() - REFRESH_WINDOW_MS
+	const gapStart = newestPeriod?.getTime() ?? windowStart
+	const earliest = now.getTime() - MAX_CATCH_UP_MS
+
+	return { from: new Date(Math.max(Math.min(windowStart, gapStart), earliest)), to: now }
+}
+
+function pause(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function refresh(db: Database, newestPeriod: Date | null): Promise<StoredState> {
+	const range = refreshRange(newestPeriod, new Date())
 
 	try {
-		await ingestRange(db, { from, to })
+		// The API limits how long one request may be, so a long gap is fetched in pieces, one
+		// after the other (see the README, Backfill).
+		const chunks = splitDateRange(range, MAX_INGEST_RANGE_DAYS)
+		for (const [index, chunk] of chunks.entries()) {
+			if (index > 0) await pause(PAUSE_BETWEEN_CHUNKS_MS)
+			await ingestRange(db, chunk)
+		}
 	} catch (error) {
 		// The caller falls back to stored data, so log here or a broken refresh goes unnoticed.
 		console.error('Lazy refresh failed', error)
@@ -79,12 +108,13 @@ function waitAtMost(
 }
 
 /**
- * Refresh the stored data if the newest stored period is more than 30 minutes old. Callers
- * that arrive while a refresh is running share it, so a burst of visitors makes one upstream
- * call, and a refresh is tried at most once a minute, so a failing API is not hit by every
- * visitor. No visitor waits more than MAX_WAIT_MS: after that they get the stored data. The
- * guard is a module variable, so it only covers this server process (see the README, Ingest
- * and refresh).
+ * Refresh the stored data if the newest stored period is more than 30 minutes old, filling
+ * any gap since the last visit (see `refreshRange`). Callers that arrive while a refresh is
+ * running share it, so a burst of visitors makes one upstream call, and a refresh is tried at
+ * most once a minute, so a failing API is not hit by every visitor. No visitor waits more than
+ * MAX_WAIT_MS: after that they get the stored data, and the refresh carries on. The guard is
+ * a module variable, so it only covers this server process (see the README, Ingest and
+ * refresh).
  */
 export async function refreshIfStale(db: Database): Promise<StoredState> {
 	const stored = await readStoredState(db)
@@ -97,9 +127,12 @@ export async function refreshIfStale(db: Database): Promise<StoredState> {
 		if (Date.now() - lastAttemptAt < REFRESH_COOLDOWN_MS) return stored
 		lastAttemptAt = Date.now()
 
-		// Clear the guard when the fetch ends, so the next call can start a new one.
-		inFlight = refresh(db).finally(() => {
+		// When the fetch ends, clear the guard so the next call can start a new one, and restart
+		// the cooldown from now. Counting only from the start would let a slow attempt (over a
+		// minute) be retried the moment it fails.
+		inFlight = refresh(db, stored.newestPeriod).finally(() => {
 			inFlight = null
+			lastAttemptAt = Date.now()
 		})
 	}
 

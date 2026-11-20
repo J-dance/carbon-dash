@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { Database } from './ingest'
-import { isStale } from './lazyRefresh'
+import { isStale, refreshRange } from './lazyRefresh'
 
 // How these tests work
 // ====================
@@ -25,7 +25,8 @@ import { isStale } from './lazyRefresh'
 // `const` written here would not exist yet. It also keeps it one single function, so the one
 // the tests configure is the one the code calls.
 const { ingestRange } = vi.hoisted(() => ({ ingestRange: vi.fn() }))
-vi.mock('./ingest', () => ({ ingestRange }))
+// Only `ingestRange` is faked. The rest of the module (such as MAX_INGEST_RANGE_DAYS) stays real.
+vi.mock('./ingest', async (importOriginal) => ({ ...(await importOriginal<object>()), ingestRange }))
 
 // The pretend "now" for every test, and a way to describe a period relative to it.
 const NOW = new Date('2026-01-01T12:00:00Z')
@@ -58,6 +59,36 @@ describe('isStale', () => {
 
 	test('is fresh when the newest period is in the future', () => {
 		expect(isStale(minutesAgo(-30), NOW)).toBe(false)
+	})
+})
+
+// ---------------------------------------------------------------------------------------------
+// refreshRange: also a plain function. Minutes are used so the sample values stay readable.
+// ---------------------------------------------------------------------------------------------
+
+describe('refreshRange', () => {
+	const TWO_DAYS = 48 * 60
+	const NINETY_DAYS = 90 * 24 * 60
+
+	test('covers the last 48 hours when the data is recent', () => {
+		expect(refreshRange(minutesAgo(45), NOW)).toStrictEqual({ from: minutesAgo(TWO_DAYS), to: NOW })
+	})
+
+	test('covers the last 48 hours when nothing is stored (the first backfill is manual)', () => {
+		expect(refreshRange(null, NOW)).toStrictEqual({ from: minutesAgo(TWO_DAYS), to: NOW })
+	})
+
+	test('starts at the newest stored period when that is older than 48 hours', () => {
+		const threeDays = 3 * 24 * 60
+		expect(refreshRange(minutesAgo(threeDays), NOW)).toStrictEqual({ from: minutesAgo(threeDays), to: NOW })
+	})
+
+	test('never reaches back more than 90 days', () => {
+		const twoHundredDays = 200 * 24 * 60
+		expect(refreshRange(minutesAgo(twoHundredDays), NOW)).toStrictEqual({
+			from: minutesAgo(NINETY_DAYS),
+			to: NOW
+		})
 	})
 })
 
@@ -129,15 +160,17 @@ describe('refreshIfStale', () => {
 
 	/**
 	 * A fetch that keeps running until the test calls the returned `finish()`, so several
-	 * visitors can arrive while it is still in progress. It succeeds when it finishes.
+	 * visitors can arrive while it is still in progress. When it finishes it succeeds, or fails
+	 * like an API outage if asked to.
 	 */
-	function makeFetchWait() {
+	function makeFetchWait(outcome: 'succeed' | 'fail' = 'succeed') {
 		let finish!: () => void
 		const finished = new Promise<void>((resolve) => {
 			finish = resolve
 		})
 		ingestRange.mockImplementation(async () => {
 			await finished
+			if (outcome === 'fail') throw new Error('API down')
 			stored.newest = minutesAgo(5)
 		})
 		return finish
@@ -172,6 +205,26 @@ describe('refreshIfStale', () => {
 			// Check: one fetch, and the result reflects the data it stored.
 			expect(ingestRange).toHaveBeenCalledTimes(1)
 			expect(result).toStrictEqual({ newestPeriod: minutesAgo(5), isStale: false })
+		})
+
+		test('fills a long gap in pieces the API accepts, one after the other', async () => {
+			// Set up: nobody visited for 20 days, so the newest period is 20 days old.
+			const twentyDays = 20 * 24 * 60
+			stored.newest = minutesAgo(twentyDays)
+			makeFetchSucceed()
+			const refreshIfStale = await loadRefreshIfStale()
+
+			// Act: the pause between pieces uses the fake clock, so move the clock forward.
+			const visitor = refreshIfStale(db)
+			await vi.advanceTimersByTimeAsync(1000)
+			await visitor
+
+			// Check: two pieces (13 days, then the remaining 7) that start where the last ended.
+			expect(ingestRange).toHaveBeenCalledTimes(2)
+			const [first, second] = ingestRange.mock.calls.map(([, range]) => range)
+			expect(first.from).toStrictEqual(minutesAgo(twentyDays))
+			expect(first.to.getTime() - first.from.getTime()).toBe(13 * 24 * 60 * 60 * 1000)
+			expect(second.from).toStrictEqual(first.to)
 		})
 
 		test('fetches when nothing is stored yet', async () => {
@@ -263,6 +316,26 @@ describe('refreshIfStale', () => {
 			// Check: the second visitor did not trigger a fetch, and still got the old data.
 			expect(ingestRange).toHaveBeenCalledTimes(1)
 			expect(result).toStrictEqual({ newestPeriod: minutesAgo(45), isStale: true })
+		})
+
+		test('counts the minute from when a slow attempt ended, not when it started', async () => {
+			// Set up: a fetch that fails, but only after the test lets it.
+			const finishFetch = makeFetchWait('fail')
+			const refreshIfStale = await loadRefreshIfStale()
+
+			// Act: the attempt starts, and is still running 70 seconds later (longer than the
+			// minute of cooldown). The first visitor gave up waiting after 5 seconds.
+			const firstVisitor = refreshIfStale(db)
+			await vi.waitFor(() => expect(ingestRange).toHaveBeenCalled())
+			vi.advanceTimersByTime(70 * 1000)
+			await firstVisitor
+			// The attempt now fails. One second later, another visitor arrives.
+			finishFetch()
+			await vi.advanceTimersByTimeAsync(1000)
+			await refreshIfStale(db)
+
+			// Check: the cooldown started when the attempt ended, so no second fetch was made.
+			expect(ingestRange).toHaveBeenCalledTimes(1)
 		})
 
 		test('tries again once the minute is over', async () => {

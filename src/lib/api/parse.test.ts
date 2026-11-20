@@ -1,9 +1,8 @@
 import { describe, expect, test } from 'vitest'
-import { parseGeneration, parseIntensity, parseIntensityRange, parseRegionalRange } from './parse'
+import { parseIntensityRange, parseRegionalRange } from './parse'
 import {
 	FUELS,
 	INDEXES,
-	type GenerationMix,
 	type NationalIntensity,
 	type RegionalReading
 } from './types'
@@ -36,38 +35,35 @@ function response(
 	}
 }
 
-describe('parseIntensity', () => {
+// The range parser reads every period with the same code, so these tests give it a response
+// with one period and check that period.
+const parseOnePeriod = (json: unknown) => parseIntensityRange(json)[0]
+
+describe('parseIntensityRange: reading one period', () => {
 	describe('valid responses', () => {
 		test('parses a period into a flat object', () => {
-			expect(parseIntensity(response())).toStrictEqual(expected)
+			expect(parseOnePeriod(response())).toStrictEqual(expected)
 		})
 
 		test('keeps a null actual, as for a period that has not ended', () => {
-			expect(parseIntensity(response({}, { actual: null })).actual).toBeNull()
+			expect(parseOnePeriod(response({}, { actual: null })).actual).toBeNull()
 		})
 
 		test.each(INDEXES)('accepts the index "%s"', (index) => {
-			expect(parseIntensity(response({}, { index })).index).toBe(index)
+			expect(parseOnePeriod(response({}, { index })).index).toBe(index)
 		})
 
 		test('accepts zero for forecast and actual', () => {
-			const parsed = parseIntensity(response({}, { forecast: 0, actual: 0 }))
+			const parsed = parseOnePeriod(response({}, { forecast: 0, actual: 0 }))
 
 			expect(parsed.forecast).toBe(0)
 			expect(parsed.actual).toBe(0)
 		})
 
 		test('ignores fields it does not know about', () => {
-			const parsed = parseIntensity(response({ extra: 'x' }, { extra: 1 }))
+			const parsed = parseOnePeriod(response({ extra: 'x' }, { extra: 1 }))
 
 			expect(parsed).toStrictEqual(expected)
-		})
-
-		test('uses the first period when there are several', () => {
-			const later = { ...validPeriod, intensity: { ...validPeriod.intensity, forecast: 200 } }
-			const json = { data: [response().data[0], later] }
-
-			expect(parseIntensity(json).forecast).toBe(109)
 		})
 	})
 
@@ -82,7 +78,6 @@ describe('parseIntensity', () => {
 			['the response is undefined', undefined, 'the response to be an object'],
 			['"data" is missing', {}, '"data" to be an array'],
 			['"data" is an object, not an array', { data: validPeriod }, '"data" to be an array'],
-			['"data" is empty', { data: [] }, 'at least one period'],
 			['a period is null', { data: [null] }, 'a period to be an object'],
 			['a period is a string', { data: ['x'] }, 'a period to be an object'],
 
@@ -120,12 +115,12 @@ describe('parseIntensity', () => {
 		]
 
 		test.each(invalidCases)('rejects a response where %s', (_name, input, message) => {
-			expect(() => parseIntensity(input)).toThrow(message)
+			expect(() => parseIntensityRange(input)).toThrow(message)
 		})
 	})
 })
 
-// A /generation response lists the fuels as { fuel, perc } items. Their order is not stable in
+// The regional endpoints list the fuels as { fuel, perc } items. Their order is not stable in
 // the real API, so the parser must read them by name.
 const validMix = [
 	{ fuel: 'biomass', perc: 8.8 },
@@ -139,166 +134,22 @@ const validMix = [
 	{ fuel: 'wind', perc: 17 }
 ]
 
-const expectedGeneration: GenerationMix = {
-	from: '2026-11-17T12:00Z',
-	to: '2026-11-17T12:30Z',
-	mix: {
-		biomass: 8.8,
-		coal: 0,
-		imports: 13.2,
-		gas: 47,
-		nuclear: 14,
-		other: 0,
-		hydro: 0,
-		solar: 0,
-		wind: 17
-	}
-}
-
-/** Build a /generation response from the valid sample. `data` overrides fields of the `data` object. */
-function generationResponse(data: Record<string, unknown> = {}) {
-	return {
-		data: { from: '2026-11-17T12:00Z', to: '2026-11-17T12:30Z', generationmix: validMix, ...data }
-	}
+const expectedMix = {
+	biomass: 8.8,
+	coal: 0,
+	imports: 13.2,
+	gas: 47,
+	nuclear: 14,
+	other: 0,
+	hydro: 0,
+	solar: 0,
+	wind: 17
 }
 
 /** The valid mix with its first item (biomass) replaced, to test one bad item at a time. */
 function mixWithFirstItem(item: unknown) {
 	return [item, ...validMix.slice(1)]
 }
-
-describe('parseGeneration', () => {
-	describe('valid responses', () => {
-		test('parses the fuel mix into a record keyed by fuel', () => {
-			expect(parseGeneration(generationResponse())).toStrictEqual(expectedGeneration)
-		})
-
-		test('gives the same result whatever order the fuels arrive in', () => {
-			const shuffled = generationResponse({ generationmix: [...validMix].reverse() })
-
-			expect(parseGeneration(shuffled)).toStrictEqual(expectedGeneration)
-		})
-
-		test('uses the latest value when a fuel appears twice', () => {
-			const duplicated = generationResponse({ generationmix: [...validMix, { fuel: 'wind', perc: 99 }] })
-
-			expect(parseGeneration(duplicated).mix.wind).toBe(99)
-		})
-
-		test('ignores fields it does not know about', () => {
-			const extra = generationResponse({
-				extra: 'x',
-				generationmix: validMix.map((item) => ({ ...item, extra: 1 }))
-			})
-
-			expect(parseGeneration(extra)).toStrictEqual(expectedGeneration)
-		})
-	})
-
-	describe('invalid responses', () => {
-		// Each case is [what is wrong, the input, a piece of the expected error message].
-		const invalidCases: [name: string, input: unknown, message: string][] = [
-			// The response as a whole
-			['the response is null', null, 'the response to be an object'],
-			['the response is a string', 'oops', 'the response to be an object'],
-			['the response is an array', [], 'the response to be an object'],
-			['the response is undefined', undefined, 'the response to be an object'],
-			['"data" is missing', {}, '"data" to be an object'],
-			['"data" is null', { data: null }, '"data" to be an object'],
-			['"data" is an array, as in /intensity', { data: [] }, '"data" to be an object'],
-
-			// The period
-			['"from" is missing', generationResponse({ from: undefined }), '"from" to be a string'],
-			['"from" is a number', generationResponse({ from: 1763380800 }), '"from" to be a string'],
-			['"to" is missing', generationResponse({ to: undefined }), '"to" to be a string'],
-			['"to" is a number', generationResponse({ to: 1763382600 }), '"to" to be a string'],
-
-			// The list of fuels
-			[
-				'"generationmix" is missing',
-				generationResponse({ generationmix: undefined }),
-				'"generationmix" to be an array'
-			],
-			[
-				'"generationmix" is an object, not an array',
-				generationResponse({ generationmix: { biomass: 8.8 } }),
-				'"generationmix" to be an array'
-			],
-			[
-				'"generationmix" is empty',
-				generationResponse({ generationmix: [] }),
-				'to include every fuel'
-			],
-
-			// One item
-			[
-				'an item is null',
-				generationResponse({ generationmix: mixWithFirstItem(null) }),
-				'item to be an object'
-			],
-			[
-				'an item is a string',
-				generationResponse({ generationmix: mixWithFirstItem('wind') }),
-				'item to be an object'
-			],
-			[
-				'an item has no "fuel"',
-				generationResponse({ generationmix: mixWithFirstItem({ perc: 1 }) }),
-				'"fuel" to be a known fuel'
-			],
-			[
-				'a fuel is unknown',
-				generationResponse({ generationmix: mixWithFirstItem({ fuel: 'fusion', perc: 1 }) }),
-				'"fuel" to be a known fuel'
-			],
-			[
-				'a fuel name has the wrong case',
-				generationResponse({ generationmix: mixWithFirstItem({ fuel: 'Wind', perc: 1 }) }),
-				'"fuel" to be a known fuel'
-			],
-			[
-				'a fuel is a number',
-				generationResponse({ generationmix: mixWithFirstItem({ fuel: 3, perc: 1 }) }),
-				'"fuel" to be a known fuel'
-			],
-			[
-				'an item has no "perc"',
-				generationResponse({ generationmix: mixWithFirstItem({ fuel: 'biomass' }) }),
-				'"perc" to be a number'
-			],
-			[
-				'"perc" is a string',
-				generationResponse({ generationmix: mixWithFirstItem({ fuel: 'biomass', perc: '8.8' }) }),
-				'"perc" to be a number'
-			],
-			[
-				'"perc" is null',
-				generationResponse({ generationmix: mixWithFirstItem({ fuel: 'biomass', perc: null }) }),
-				'"perc" to be a number'
-			]
-		]
-
-		test.each(invalidCases)('rejects a response where %s', (_name, input, message) => {
-			expect(() => parseGeneration(input)).toThrow(message)
-		})
-
-		test.each(FUELS)('rejects a response with no %s, and names it', (fuel) => {
-			const without = generationResponse({
-				generationmix: validMix.filter((item) => item.fuel !== fuel)
-			})
-
-			expect(() => parseGeneration(without)).toThrow(`missing: ${fuel}`)
-		})
-
-		test('names every missing fuel when several are absent', () => {
-			const without = generationResponse({
-				generationmix: validMix.filter((item) => item.fuel !== 'solar' && item.fuel !== 'wind')
-			})
-
-			expect(() => parseGeneration(without)).toThrow('missing: solar, wind')
-		})
-	})
-})
 
 describe('parseIntensityRange', () => {
 	test('parses every period, in the order the API sent them', () => {
@@ -322,7 +173,7 @@ describe('parseIntensityRange', () => {
 		expect(() => parseIntensityRange({})).toThrow('"data" to be an array')
 	})
 
-	test('rejects a period with the wrong shape, as parseIntensity does', () => {
+	test('rejects a period with the wrong shape', () => {
 		const badIndex = { data: [{ ...validPeriod, intensity: { forecast: 1, actual: 1, index: 'huge' } }] }
 
 		expect(() => parseIntensityRange(badIndex)).toThrow('"index" to be an intensity index')
@@ -376,7 +227,7 @@ describe('parseRegionalRange', () => {
 				to: '2026-11-17T12:30Z',
 				forecast: 50,
 				index: 'low',
-				mix: expectedGeneration.mix
+				mix: expectedMix
 			}
 
 			expect(parseRegionalRange(regionalResponse([regionItem(13)]))).toStrictEqual([reading])
@@ -391,7 +242,7 @@ describe('parseRegionalRange', () => {
 		test('reads the fuel mix by name, whatever order the fuels arrive in', () => {
 			const json = regionalResponse([regionItem(1, { generationmix: [...validMix].reverse() })])
 
-			expect(parseRegionalRange(json)[0].mix).toStrictEqual(expectedGeneration.mix)
+			expect(parseRegionalRange(json)[0].mix).toStrictEqual(expectedMix)
 		})
 
 		test('returns an empty list when the range has no periods', () => {
@@ -449,6 +300,48 @@ describe('parseRegionalRange', () => {
 			expect(() => parseRegionalRange(regionalResponse([regionItem(1, { generationmix: without })]))).toThrow(
 				'missing: wind'
 			)
+		})
+	})
+
+	// The mix is read by one helper that every regional reading uses, so these cases check it
+	// through a single region.
+	describe('the fuel mix of a region', () => {
+		const parseMix = (generationmix: unknown) =>
+			parseRegionalRange(regionalResponse([regionItem(1, { generationmix })]))[0].mix
+
+		test('uses the latest value when a fuel appears twice', () => {
+			expect(parseMix([...validMix, { fuel: 'wind', perc: 99 }]).wind).toBe(99)
+		})
+
+		test('ignores fields it does not know about', () => {
+			expect(parseMix(validMix.map((item) => ({ ...item, extra: 1 })))).toStrictEqual(expectedMix)
+		})
+
+		const invalidCases: [name: string, input: unknown, message: string][] = [
+			['"generationmix" is an object, not an array', { biomass: 8.8 }, '"generationmix" to be an array'],
+			['"generationmix" is empty', [], 'to include every fuel'],
+			['an item is null', mixWithFirstItem(null), 'item to be an object'],
+			['an item is a string', mixWithFirstItem('wind'), 'item to be an object'],
+			['an item has no "fuel"', mixWithFirstItem({ perc: 1 }), '"fuel" to be a known fuel'],
+			['a fuel name has the wrong case', mixWithFirstItem({ fuel: 'Wind', perc: 1 }), '"fuel" to be a known fuel'],
+			['a fuel is a number', mixWithFirstItem({ fuel: 3, perc: 1 }), '"fuel" to be a known fuel'],
+			['an item has no "perc"', mixWithFirstItem({ fuel: 'biomass' }), '"perc" to be a number'],
+			['"perc" is a string', mixWithFirstItem({ fuel: 'biomass', perc: '8.8' }), '"perc" to be a number'],
+			['"perc" is null', mixWithFirstItem({ fuel: 'biomass', perc: null }), '"perc" to be a number']
+		]
+
+		test.each(invalidCases)('rejects a mix where %s', (_name, generationmix, message) => {
+			expect(() => parseMix(generationmix)).toThrow(message)
+		})
+
+		test.each(FUELS)('rejects a mix with no %s, and names it', (fuel) => {
+			expect(() => parseMix(validMix.filter((item) => item.fuel !== fuel))).toThrow(`missing: ${fuel}`)
+		})
+
+		test('names every missing fuel when several are absent', () => {
+			const without = validMix.filter((item) => item.fuel !== 'solar' && item.fuel !== 'wind')
+
+			expect(() => parseMix(without)).toThrow('missing: solar, wind')
 		})
 	})
 })

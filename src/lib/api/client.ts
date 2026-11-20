@@ -1,10 +1,9 @@
-import { parseGeneration, parseIntensity, parseIntensityRange, parseRegionalRange } from './parse'
-import type { GenerationMix, NationalIntensity, RegionalReading } from './types'
+import { parseIntensityRange, parseRegionalRange } from './parse'
+import type { NationalIntensity, RegionalReading } from './types'
 
 const BASE_URL = 'https://api.carbonintensity.org.uk'
-const REQUEST_TIMEOUT_MS = 10_000
-// A regional range response is several MB, so it gets longer than a single-period request.
-const RANGE_REQUEST_TIMEOUT_MS = 60_000
+// A regional range response is several MB, so a request gets a generous minute.
+const REQUEST_TIMEOUT_MS = 60_000
 
 /** The API answered with a non-2xx status. Carries the status so callers can decide what to do (show an error, retry). */
 export class CarbonApiError extends Error {
@@ -18,16 +17,12 @@ export class CarbonApiError extends Error {
 }
 
 /** GET a path on the Carbon Intensity API and return the JSON body. Unvalidated, so callers must parse it. */
-async function getJson(
-	path: string,
-	fetchFn: typeof fetch,
-	timeoutMs = REQUEST_TIMEOUT_MS
-): Promise<unknown> {
+async function getJson(path: string, fetchFn: typeof fetch): Promise<unknown> {
 	const res = await fetchFn(BASE_URL + path, {
 		headers: { Accept: 'application/json' },
 		// Created per request: a timeout signal starts counting as soon as it is made.
-		// Without it a slow upstream would hang the page's load function.
-		signal: AbortSignal.timeout(timeoutMs)
+		// Without it a slow upstream would hang the caller (a refresh, or the backfill).
+		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
 	})
 
 	if (!res.ok) {
@@ -35,14 +30,6 @@ async function getJson(
 	}
 
 	return res.json()
-}
-
-export async function getCurrentIntensity(fetchFn: typeof fetch = fetch): Promise<NationalIntensity> {
-	return parseIntensity(await getJson('/intensity', fetchFn))
-}
-
-export async function getCurrentGeneration(fetchFn: typeof fetch = fetch): Promise<GenerationMix> {
-	return parseGeneration(await getJson('/generation', fetchFn))
 }
 
 /**
@@ -64,7 +51,7 @@ export async function getIntensityRange(
 	fetchFn: typeof fetch = fetch
 ): Promise<NationalIntensity[]> {
 	const path = `/intensity/${formatApiTime(from)}/${formatApiTime(to)}`
-	return parseIntensityRange(await getJson(path, fetchFn, RANGE_REQUEST_TIMEOUT_MS))
+	return parseIntensityRange(await getJson(path, fetchFn))
 }
 
 /**
@@ -78,5 +65,5 @@ export async function getRegionalRange(
 	fetchFn: typeof fetch = fetch
 ): Promise<RegionalReading[]> {
 	const path = `/regional/intensity/${formatApiTime(from)}/${formatApiTime(to)}`
-	return parseRegionalRange(await getJson(path, fetchFn, RANGE_REQUEST_TIMEOUT_MS))
+	return parseRegionalRange(await getJson(path, fetchFn))
 }

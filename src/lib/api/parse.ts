@@ -2,7 +2,6 @@ import {
 	FUELS,
 	INDEXES,
 	type Fuel,
-	type GenerationMix,
 	type Index,
 	type NationalIntensity,
 	type RegionalReading
@@ -103,19 +102,7 @@ function readFuel(obj: JsonObject, key: string): Fuel {
 	return value
 }
 
-/** Parse the response of `/intensity`, which wraps a single period in a `data` array. */
-export function parseIntensity(json: unknown): NationalIntensity {
-	const periods = readArray(asRecord(json, 'the response'), 'data')
-	if (periods.length === 0) throw new Error('Expected "data" to contain at least one period')
-
-	return parseIntensityPeriod(periods[0])
-}
-
-/**
- * Parse one period from the API into a flat NationalIntensity. Separate from
- * parseIntensity because the range endpoint returns many of these periods in the
- * same shape, so parseIntensityRange reuses it.
- */
+/** Parse one period from the API into a flat NationalIntensity. */
 function parseIntensityPeriod(value: unknown): NationalIntensity {
 	const period = asRecord(value, 'a period')
 	const intensity = readRecord(period, 'intensity')
@@ -137,10 +124,7 @@ export function parseIntensityRange(json: unknown): NationalIntensity[] {
 	return readArray(asRecord(json, 'the response'), 'data').map(parseIntensityPeriod)
 }
 
-/**
- * Read the `generationmix` list of `obj` into a record keyed by fuel. Shared by `/generation`
- * and the regional endpoints, which describe the fuel mix in the same way.
- */
+/** Read the `generationmix` list of `obj` into a record keyed by fuel. */
 function readFuelMix(obj: JsonObject): Record<Fuel, number> {
 	// Filled by fuel name, never by position: the order of fuels in the JSON is not stable.
 	const mix: Partial<Record<Fuel, number>> = {}
@@ -156,20 +140,6 @@ function readFuelMix(obj: JsonObject): Record<Fuel, number> {
 	}
 
 	return mix
-}
-
-/**
- * Parse the response of `/generation`: the fuel mix for the current period. Unlike
- * `/intensity`, `data` is a single object, not an array.
- */
-export function parseGeneration(json: unknown): GenerationMix {
-	const data = readRecord(asRecord(json, 'the response'), 'data')
-
-	return {
-		from: readString(data, 'from'),
-		to: readString(data, 'to'),
-		mix: readFuelMix(data)
-	}
 }
 
 /**

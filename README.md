@@ -36,7 +36,7 @@ Each step lists the Svelte concepts it is meant to teach.
   - [x] 90-day backfill script (see Backfill)
   - [x] Lazy refresh: re-fetch when the newest reading is over 60 minutes old, with a single-flight guard (`refreshIfStale` in `src/lib/server/ingest/lazyRefresh.ts`, built and tested; the endpoints below call it)
   - [ ] `+server.ts` endpoints with query params (range, region, tier)
-  - [ ] Tier scores computed in SQL (`NTILE(3)`)
+  - [x] Tier scores computed in SQL (`NTILE(3)`): `regionTiers` in `src/lib/server/db/tiers.ts`, tested against the local database (see Performance tiers)
   - [ ] Concepts: server routes, `$env`, `$lib`, form actions if needed
 - [ ] **4. National dashboard charts**
   - [ ] Actual vs forecast (24h back, 48h forward), fuel mix, and the forecast accuracy view, as plain SVG using `d3-scale` and `d3-shape`
@@ -202,7 +202,7 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
 | Renewable / low-carbon / fossil % | Latest fuel mix. The fuel classification (is biomass renewable? imports?) lives in one constants file                                                                                       |
 | Cleanest / dirtiest 48h window    | Live `fw48h` call, cached for a few minutes. Slide a window (e.g. 2h) over the 97 periods                                                                                                   |
 | Current vs 30-day average         | Stored `national_intensity`                                                                                                                                                                 |
-| Region tier                       | Average forecast per region over a chosen period, then `NTILE(3)` over regions 1-14 only. 14 regions split 5/5/4, so decide which tier gets the extra region. Needs a tiebreak (see quirks) |
+| Region tier                       | Average forecast per region over a chosen period, then `NTILE(3)` over regions 1-14 only. 14 regions split 4/5/5, ties broken by region name (see Performance tiers)                        |
 | Region gap                        | Latest forecast per region                                                                                                                                                                  |
 | Forecast accuracy                 | `forecast` and `actual` in `national_intensity`                                                                                                                                             |
 
@@ -232,6 +232,14 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
 ## Performance tiers (Top / Middle / Bottom)
 
 Mirrors the performance scores in the job posting. Regions (or time windows) are ranked by forecast carbon intensity over a chosen period (default: last 24 hours) and split into thirds. The lowest third is **Top**, the middle third **Middle**, and the highest third **Bottom**. Shown as a labelled badge (text plus icon, not colour only), and usable for sorting and filtering.
+
+**How it is computed (decided 2026-11-20).** `regionTiers` in `src/lib/server/db/tiers.ts` averages each region's `forecast` over the window, then ranks and splits with `NTILE(3)`. It is one SQL query, so the database does the ranking.
+
+- **Only regions 1-14** (`kind = 'dno'`). England, Scotland, Wales and GB overlap them, so ranking them too would count the same electricity twice.
+- **Tiers are relative.** The split is always the same, whatever the numbers are, so the table shows the average beside the tier and "Bottom" does not read as "bad".
+- **Bottom gets the extra region.** 14 does not divide by 3, and `NTILE` gives leftover rows to the first buckets. Ranking dirtiest first makes bucket 1 the Bottom tier, so the split is Bottom 5, Middle 5, Top 4.
+- **Ties break on region name.** North Scotland has averaged 0, so ties happen. Without a second sort column, tied regions could land in different tiers from one request to the next.
+- **Tests** run against the real local Postgres (they need Docker, see Local setup), because the ranking happens in the SQL and a fake database would test nothing.
 
 ## Metrics
 

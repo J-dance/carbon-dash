@@ -72,6 +72,7 @@ pnpm dev
 - Postgres uses host port 5433 so it does not clash with a Postgres already running on 5432 (for example from Homebrew).
 - `pnpm db:migrate` applies only the migrations in `drizzle/` that this database has not run yet. Migration `0001` inserts the regions, so they are static reference data copied from the API's `/regional` endpoint, not fetched at runtime.
 - `pnpm db:studio` opens Drizzle Studio to browse the tables.
+- `pnpm test` runs the Vitest tests. `src/lib/server/db/tiers.test.ts` runs against the real local Postgres, so it **needs Docker running** and the database up and migrated (`pnpm db:up`, `pnpm db:migrate`). Without that it fails with a connection error. It only writes rows dated 2030 and deletes them afterwards, so it does not touch real data. The other test files need no database.
 
 ## Backfill
 

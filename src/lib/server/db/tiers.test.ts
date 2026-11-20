@@ -3,7 +3,8 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
 import { readings, regions } from './schema'
-import { regionTiers, type RegionTier, type Tier } from './tiers'
+import type { RegionTier, Tier } from '#lib/regions/types.ts'
+import { regionTiers } from './tiers'
 
 // Requires Docker
 // ===============

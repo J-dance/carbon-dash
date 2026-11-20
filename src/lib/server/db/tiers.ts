@@ -1,16 +1,7 @@
 import { and, avg, eq, gte, sql } from 'drizzle-orm'
+import type { RegionTier, Tier } from '#lib/regions/types.ts'
 import type { Database } from '../ingest/ingest'
 import { readings, regions } from './schema'
-
-export type Tier = 'top' | 'middle' | 'bottom'
-
-export interface RegionTier {
-	regionId: number
-	shortName: string
-	/** Average forecast over the period, in gCO2/kWh. */
-	avgForecast: number
-	tier: Tier
-}
 
 // What NTILE(3) returns for each region. See the ranking in `regionTiers`.
 type Bucket = 1 | 2 | 3

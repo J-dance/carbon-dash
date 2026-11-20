@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
+	import RegionsTable from "#lib/components/RegionsTable.svelte";
 
 	let { data }: PageProps = $props();
 
@@ -33,5 +34,5 @@
 		</p>
 	{/if}
 
-	<p>Table with regional data</p>
+	<RegionsTable regions={data.regions} range={data.range} />
 {/if}

@@ -1,11 +1,9 @@
-import type { Tier } from '../db/tiers'
+import type { Range, Tier } from '#lib/regions/types.ts'
 
 const MS_PER_HOUR = 60 * 60 * 1000
 
-/** The periods the tiers can be ranked over, as the `range` query param spells them, and their length. */
-export const RANGE_HOURS = { '24h': 24, '7d': 7 * 24, '30d': 30 * 24 } as const
-
-export type Range = keyof typeof RANGE_HOURS
+/** The length of each period the tiers can be ranked over. Record<Range, ...> makes the compiler check that none is missing. */
+export const RANGE_HOURS: Record<Range, number> = { '24h': 24, '7d': 7 * 24, '30d': 30 * 24 }
 
 export const DEFAULT_RANGE: Range = '24h'
 

@@ -1,5 +1,4 @@
-import type { RegionTier } from "../db/tiers"
-import type { Range } from "./query"
+import type { Range, RegionTier } from "#lib/regions/types.ts"
 
 /**
  * The JSON that `GET /api/regions` returns, as the page receives it. `newestPeriod` is a string

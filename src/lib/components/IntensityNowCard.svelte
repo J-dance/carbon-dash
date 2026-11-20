@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { INDEXES, type NationalIntensity } from "#lib/api/types.ts";
+	import { INDEXES } from "#lib/api/types.ts";
 	import Card from "#lib/components/Card.svelte";
+	import type { NationalNow } from "#lib/national/types.ts";
 
-	let { intensity }: { intensity: NationalIntensity } = $props();
+	let { intensity }: { intensity: NationalNow } = $props();
 
 	// `actual` is null until the period has ended, so fall back to the forecast and say so.
 	const isForecast = $derived(intensity.actual === null);

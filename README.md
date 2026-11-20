@@ -36,6 +36,10 @@ Each step lists the Svelte concepts it is meant to teach.
   - [x] 90-day backfill script (see Backfill)
   - [x] Lazy refresh: re-fetch when the newest reading is over 60 minutes old, with a single-flight guard (`refreshIfStale` in `src/lib/server/ingest/lazyRefresh.ts`, built and tested; the endpoints below call it)
   - [ ] `+server.ts` endpoints with query params (range, region, tier)
+    - [x] `GET /api/regions` (`range`, `tier`): the 14 regions with their tiers, used by the regions page
+    - [x] `GET /api/national`: the latest period's intensity, the GB fuel mix and the 30-day average, used by the home page. Both endpoints call `refreshIfStale` first and say whether the data is still stale
+    - [ ] `GET /api/national/history?range=`: stored actual vs forecast, with the accuracy summary
+    - [ ] `GET /api/regions/[id]`: one region's latest values and series, for the preview panel
   - [x] Tier scores computed in SQL (`NTILE(3)`): `regionTiers` in `src/lib/server/db/tiers.ts`, tested against the local database (see Performance tiers)
   - [ ] Concepts: server routes, `$env`, `$lib`, form actions if needed
 - [ ] **4. National dashboard charts**

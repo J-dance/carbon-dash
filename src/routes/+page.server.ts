@@ -1,19 +1,19 @@
 import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
-import { getCurrentIntensity, getCurrentGeneration } from "#lib/api/client.ts";
+import type { NationalResponse } from "#lib/server/national/response.ts";
 
-export const load: PageServerLoad = async () => {
-	try {
-		const [intensity, generation] = await Promise.all([
-			getCurrentIntensity(fetch),
-			getCurrentGeneration(fetch)
-		])
+export const load: PageServerLoad = async ({ fetch }) => {
+	// This fetch calls our own endpoint in-process, so the page and the endpoint share one data
+	// path (see the README, Plan step 3).
+	const response = await fetch("/api/national")
 
-		return { intensity, generation }
-	} catch (cause) {
-		// Request failures, timeouts and unexpected API data all mean the upstream let us down.
-		// error() shows +error.svelte, but SvelteKit does not log it, so keep the cause here.
-		console.error("Could not load the national data", cause)
-		error(502, "Could not load the latest data from the Carbon Intensity API.")
+	// fetch() does not throw on an error status, so check it. error() is not logged by
+	// SvelteKit, so log the status here.
+	if (!response.ok) {
+		console.error("Could not load the national data", response.status)
+		error(502, "Could not load the national data.")
 	}
+
+	const data: NationalResponse = await response.json()
+	return data
 }

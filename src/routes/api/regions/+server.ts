@@ -22,12 +22,12 @@ export const GET: RequestHandler = async ({ url }) => {
 	const { newestPeriod, isStale } = await refreshIfStale(db)
 
 	// An empty database (the backfill has not run) has nothing to rank.
-	if (newestPeriod === null) return Response.json({ range, newestPeriod, isStale, regions: [] })
+	if (newestPeriod === null) return Response.json({ range, tier, newestPeriod, isStale, regions: [] })
 
 	// Rank all 14 regions first and filter afterwards. Filtering first would re-rank the
 	// regions that are left, and every one of them would look like Top.
 	const ranked = await regionTiers(db, windowStart(newestPeriod, range))
 	const regions = tier === null ? ranked : ranked.filter((region) => region.tier === tier)
 
-	return Response.json({ range, newestPeriod, isStale, regions })
+	return Response.json({ range, tier, newestPeriod, isStale, regions })
 }

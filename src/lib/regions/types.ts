@@ -5,6 +5,15 @@
 /** The three performance bands. Top is the cleanest third of the regions. */
 export type Tier = 'top' | 'middle' | 'bottom'
 
+/** Every tier, cleanest first. */
+export const TIERS: readonly Tier[] = ['top', 'middle', 'bottom']
+
+export const TIER_LABELS: Record<Tier, string> = {
+	top: 'Top',
+	middle: 'Middle',
+	bottom: 'Bottom'
+}
+
 /** The periods the tiers can be ranked over, as the `range` query param spells them. */
 export type Range = '24h' | '7d' | '30d'
 

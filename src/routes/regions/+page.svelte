@@ -2,6 +2,7 @@
 	import type { PageProps } from "./$types";
 	import RangeFilter from "#lib/components/RangeFilter.svelte";
 	import RegionsTable from "#lib/components/RegionsTable.svelte";
+	import TierFilter from "#lib/components/TierFilter.svelte";
 
 	let { data }: PageProps = $props();
 
@@ -35,6 +36,23 @@
 		</p>
 	{/if}
 
-	<RangeFilter current={data.range} />
-	<RegionsTable regions={data.regions} range={data.range} />
+	<div class="filters">
+		<RangeFilter current={data.range} />
+		<TierFilter current={data.tier} />
+	</div>
+
+	{#if data.regions.length === 0}
+		<p>No regions match these filters. Choose a different period or tier.</p>
+	{:else}
+		<RegionsTable regions={data.regions} range={data.range} />
+	{/if}
 {/if}
+
+<style>
+	.filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2) var(--space-8);
+		padding-bottom: var(--space-4);
+	}
+</style>

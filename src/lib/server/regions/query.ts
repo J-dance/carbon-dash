@@ -1,4 +1,4 @@
-import type { Range, Tier } from '#lib/regions/types.ts'
+import { TIERS, type Range, type Tier } from '#lib/regions/types.ts'
 
 const MS_PER_HOUR = 60 * 60 * 1000
 
@@ -6,8 +6,6 @@ const MS_PER_HOUR = 60 * 60 * 1000
 export const RANGE_HOURS: Record<Range, number> = { '24h': 24, '7d': 7 * 24, '30d': 30 * 24 }
 
 export const DEFAULT_RANGE: Range = '24h'
-
-const TIERS: readonly Tier[] = ['top', 'middle', 'bottom']
 
 export interface RegionsQuery {
 	range: Range

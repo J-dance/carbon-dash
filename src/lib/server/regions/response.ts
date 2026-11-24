@@ -1,5 +1,5 @@
 import type { Fuel, Index } from '#lib/api/types.ts'
-import type { Range, RegionTier } from '#lib/regions/types.ts'
+import type { Range, RegionTier, Tier } from '#lib/regions/types.ts'
 
 /**
  * The JSON that `GET /api/regions` returns, as the page receives it. `newestPeriod` is a string
@@ -7,6 +7,8 @@ import type { Range, RegionTier } from '#lib/regions/types.ts'
  */
 export interface RegionsResponse {
 	range: Range
+	/** The tier the list was filtered to. Null means all of them. */
+	tier: Tier | null
 	newestPeriod: string | null
 	isStale: boolean
 	regions: RegionTier[]

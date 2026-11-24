@@ -52,6 +52,8 @@ Each step lists the Svelte concepts it is meant to teach.
 - [ ] **5. Regions table and preview** (closest match to the job)
   - [ ] Sortable, filterable table with tier badges
   - [ ] Filters synced to URL query params (date range, tier, fuel source)
+    - [x] Date range and tier: plain links (`FilterLinks`, wrapped by `RangeFilter` and `TierFilter`) that rewrite `?range=` and `?tier=` and keep the other params. Links rather than `goto`, so they work without JavaScript and open in a new tab. SvelteKit 3 spells "stay put and keep focus" as `data-sveltekit-reset="false"`, not the old `noscroll` and `keepfocus`
+    - [ ] Fuel source: open. The endpoint returns no fuel data for the table, so this needs a column (renewable %) first, or should be dropped from the MVP
   - [ ] Preview panel with sparkline, fuel mix and forecast
   - [ ] Concepts: dynamic routes (`/regions/[id]`), `$app/state` and `goto`, shared state in a `.svelte.ts` module, `<svelte:boundary>`
 - [ ] **6. Accessibility, tests and feedback**

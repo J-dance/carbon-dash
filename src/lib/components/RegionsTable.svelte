@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Range, RegionTier, Tier } from "#lib/regions/types.ts";
+	import { TIER_LABELS, type Range, type RegionTier } from "#lib/regions/types.ts";
 
 	let { regions, range }: { regions: RegionTier[]; range: Range } = $props();
 
@@ -10,11 +10,6 @@
 	};
 
 	// Tiers are shown as words here. The icon and colour come later, with the tier badge.
-	const TIER_LABELS: Record<Tier, string> = {
-		top: "Top",
-		middle: "Middle",
-		bottom: "Bottom"
-	};
 </script>
 
 <table>

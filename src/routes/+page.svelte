@@ -1,6 +1,9 @@
 <script lang="ts">
+	import AccuracySummary from "#lib/components/AccuracySummary.svelte";
+	import Card from "#lib/components/Card.svelte";
 	import FuelMixCard from "#lib/components/FuelMixCard.svelte";
 	import IntensityNowCard from "#lib/components/IntensityNowCard.svelte";
+	import LineChart from "#lib/components/LineChart.svelte";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -54,6 +57,14 @@
 		<IntensityNowCard intensity={data.latest.now} />
 		<FuelMixCard mix={data.latest.mix} />
 	</div>
+
+	<section class="history">
+		<Card>
+			<h2>Last 24 hours: actual vs forecast</h2>
+			<AccuracySummary accuracy={data.history.accuracy} />
+			<LineChart periods={data.history.periods} />
+		</Card>
+	</section>
 {:else}
 	<p>No data is available yet. Reload in a few minutes to try again.</p>
 {/if}
@@ -89,5 +100,10 @@
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
 		gap: var(--space-4);
 		max-width: var(--content-max-width);
+	}
+
+	.history {
+		max-width: var(--content-max-width);
+		margin-top: var(--space-4);
 	}
 </style>

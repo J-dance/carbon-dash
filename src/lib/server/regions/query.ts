@@ -26,16 +26,26 @@ function isTier(value: string): value is Tier {
 	return (TIERS as readonly string[]).includes(value)
 }
 
+export type ParsedRange = { range: Range } | { error: string }
+
 /**
- * Reads `?range=` and `?tier=` from a request URL. A missing param falls back to its default
- * (the last 24 hours, all tiers). A param that is present but not allowed is an error, so a
- * typo in a URL does not silently give different data than was asked for.
+ * Reads `?range=` from a request URL. A missing param falls back to the default (the last 24
+ * hours). A param that is present but not allowed is an error, so a typo in a URL does not
+ * silently give different data than was asked for. Shared by every endpoint that takes a range.
  */
-export function parseRegionsQuery(params: URLSearchParams): ParsedRegionsQuery {
+export function parseRange(params: URLSearchParams): ParsedRange {
 	const range = params.get('range') ?? DEFAULT_RANGE
 	if (!isRange(range)) {
 		return { error: `range must be one of: ${Object.keys(RANGE_HOURS).join(', ')}` }
 	}
+	return { range }
+}
+
+/** Reads `?range=` and `?tier=` from a request URL. A missing tier means all tiers. */
+export function parseRegionsQuery(params: URLSearchParams): ParsedRegionsQuery {
+	const parsedRange = parseRange(params)
+	if ('error' in parsedRange) return parsedRange
+	const { range } = parsedRange
 
 	const tier = params.get('tier')
 	if (tier !== null && !isTier(tier)) {

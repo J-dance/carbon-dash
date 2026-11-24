@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
 import { nationalIntensity, readings } from '../db/schema'
-import { averageActual, gbFuelMix, nationalNow } from './queries'
+import { averageActual, gbFuelMix, nationalHistory, nationalNow } from './queries'
 
 // Requires Docker
 // ===============
@@ -103,6 +103,61 @@ describe('nationalNow', () => {
 
 	test('returns null when the period is not stored', async () => {
 		expect(await nationalNow(db, FIRST_PERIOD)).toBeNull()
+	})
+})
+
+// ---------------------------------------------------------------------------------------------
+// nationalHistory
+// ---------------------------------------------------------------------------------------------
+
+describe('nationalHistory', () => {
+	test('returns the forecast, actual and index of each period in the window', async () => {
+		await db.insert(nationalIntensity).values([
+			national(FIRST_PERIOD, 150, 140),
+			national(SECOND_PERIOD, 250, null)
+		])
+
+		expect(await nationalHistory(db, FIRST_PERIOD)).toStrictEqual([
+			{ periodFrom: FIRST_PERIOD, forecast: 150, actual: 140, index: 'moderate' },
+			{ periodFrom: SECOND_PERIOD, forecast: 250, actual: null, index: 'moderate' }
+		])
+	})
+
+	test('returns the periods oldest first, whatever order they were stored in', async () => {
+		await db.insert(nationalIntensity).values([
+			national(THIRD_PERIOD, 3, 3),
+			national(FIRST_PERIOD, 1, 1),
+			national(SECOND_PERIOD, 2, 2)
+		])
+
+		const rows = await nationalHistory(db, FIRST_PERIOD)
+		expect(rows.map((row) => row.periodFrom)).toStrictEqual([
+			FIRST_PERIOD,
+			SECOND_PERIOD,
+			THIRD_PERIOD
+		])
+	})
+
+	test('includes the period that starts exactly at the window start', async () => {
+		await db.insert(nationalIntensity).values(national(SECOND_PERIOD, 100, 100))
+
+		expect(await nationalHistory(db, SECOND_PERIOD)).toHaveLength(1)
+	})
+
+	test('ignores periods before the window', async () => {
+		await db.insert(nationalIntensity).values([
+			national(FIRST_PERIOD, 100, 100),
+			national(SECOND_PERIOD, 200, 200)
+		])
+
+		const rows = await nationalHistory(db, SECOND_PERIOD)
+		expect(rows.map((row) => row.periodFrom)).toStrictEqual([SECOND_PERIOD])
+	})
+
+	test('returns an empty list when no period is in the window', async () => {
+		await db.insert(nationalIntensity).values(national(FIRST_PERIOD, 100, 100))
+
+		expect(await nationalHistory(db, SECOND_PERIOD)).toStrictEqual([])
 	})
 })
 

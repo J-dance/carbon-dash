@@ -1,4 +1,4 @@
-import { and, avg, desc, eq, gte, lte } from 'drizzle-orm'
+import { and, asc, avg, desc, eq, gte, lte } from 'drizzle-orm'
 import type { Fuel } from '#lib/api/types.ts'
 import type { NationalNow } from '#lib/national/types.ts'
 import { nationalIntensity, readings } from '../db/schema'
@@ -22,6 +22,26 @@ export async function nationalNow(db: Database, period: Date): Promise<NationalN
 		.where(eq(nationalIntensity.periodFrom, period))
 
 	return rows[0] ?? null
+}
+
+/** One stored national period, with its start as a `Date`. */
+export type NationalHistoryRow = NationalNow & { periodFrom: Date }
+
+/**
+ * Every stored national period starting at or after `since`, oldest first (the order a line
+ * chart is drawn in). Recent periods have a null `actual` until they have ended.
+ */
+export async function nationalHistory(db: Database, since: Date): Promise<NationalHistoryRow[]> {
+	return db
+		.select({
+			periodFrom: nationalIntensity.periodFrom,
+			forecast: nationalIntensity.forecast,
+			actual: nationalIntensity.actual,
+			index: nationalIntensity.index
+		})
+		.from(nationalIntensity)
+		.where(gte(nationalIntensity.periodFrom, since))
+		.orderBy(asc(nationalIntensity.periodFrom))
 }
 
 /**

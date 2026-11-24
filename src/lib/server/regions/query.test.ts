@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { parseRegionsQuery, windowStart } from './query'
+import { parseRange, parseRegionsQuery, windowStart } from './query'
 
 // Both functions are plain, so these tests need no stand-ins and no database.
 
@@ -7,6 +7,30 @@ import { parseRegionsQuery, windowStart } from './query'
 function parse(queryString: string) {
 	return parseRegionsQuery(new URLSearchParams(queryString))
 }
+
+// ---------------------------------------------------------------------------------------------
+// parseRange
+// ---------------------------------------------------------------------------------------------
+
+describe('parseRange', () => {
+	test('uses the last 24 hours when no range is given', () => {
+		expect(parseRange(new URLSearchParams(''))).toStrictEqual({ range: '24h' })
+	})
+
+	test.each(['24h', '7d', '30d'] as const)('accepts range=%s', (range) => {
+		expect(parseRange(new URLSearchParams({ range }))).toStrictEqual({ range })
+	})
+
+	test.each(['banana', '', '24H', 'constructor'])('rejects range=%j', (range) => {
+		expect(parseRange(new URLSearchParams({ range }))).toStrictEqual({
+			error: 'range must be one of: 24h, 7d, 30d'
+		})
+	})
+
+	test('ignores params that are not its own', () => {
+		expect(parseRange(new URLSearchParams('tier=banana'))).toStrictEqual({ range: '24h' })
+	})
+})
 
 // ---------------------------------------------------------------------------------------------
 // parseRegionsQuery

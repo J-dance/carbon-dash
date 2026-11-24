@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
+	import RangeFilter from "#lib/components/RangeFilter.svelte";
 	import RegionsTable from "#lib/components/RegionsTable.svelte";
 
 	let { data }: PageProps = $props();
@@ -34,5 +35,6 @@
 		</p>
 	{/if}
 
+	<RangeFilter current={data.range} />
 	<RegionsTable regions={data.regions} range={data.range} />
 {/if}

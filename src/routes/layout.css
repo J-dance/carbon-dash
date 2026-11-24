@@ -44,6 +44,11 @@
 
 	/* Motion */
 	--transition-fast: 150ms ease;
+	/* How charts come in: see "Chart entrance" below. */
+	--reveal-duration: 600ms;
+	--reveal-step: 120ms;
+	--reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+	--pop-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -62,7 +67,75 @@
 @media (prefers-reduced-motion: reduce) {
 	:root {
 		--transition-fast: 0s;
+		/* Zero length and zero delay: charts appear at once. */
+		--reveal-duration: 0s;
+		--reveal-step: 0s;
 	}
+}
+
+/*
+ * Chart entrance. One theme for every chart: things are revealed left to right, axes fade in and
+ * markers pop, and each piece starts a little after the one before it.
+ *
+ * Put a class on an element and give it its place in the sequence with `--order` (default 0).
+ * It starts `--order` steps after the page paints. The order numbers in use, so new charts fit in:
+ *   0  fuel mix bar
+ *   1  line chart axes
+ *   2  actual line, 3  forecast line (each runs for 5 steps)
+ *   8  line chart marker, once both lines have finished drawing
+ *
+ * Plain CSS animation, not a Svelte transition: it needs no JavaScript, so the server-rendered
+ * fuel mix bar animates on first paint too. `backwards` keeps an element hidden while it waits for
+ * its delay and leaves no clip or transform behind afterwards.
+ */
+@keyframes reveal {
+	/* Slightly outside the element so a line's stroke is not clipped. */
+	from {
+		clip-path: inset(-4px 100% -4px -4px);
+	}
+	/* Spelled out: clip-path cannot animate to `none`. */
+	to {
+		clip-path: inset(-4px -4px -4px -4px);
+	}
+}
+
+@keyframes fade {
+	from {
+		opacity: 0;
+	}
+}
+
+@keyframes pop {
+	from {
+		transform: scale(0);
+	}
+}
+
+.reveal,
+.fade,
+.pop {
+	animation-delay: calc(var(--order, 0) * var(--reveal-step));
+	animation-fill-mode: backwards;
+}
+
+.reveal {
+	animation-name: reveal;
+	animation-duration: var(--reveal-duration);
+	animation-timing-function: var(--reveal-ease);
+}
+
+.fade {
+	animation-name: fade;
+	animation-duration: var(--reveal-duration);
+}
+
+/* Scales from the element's own centre, and overshoots a little for fun. */
+.pop {
+	transform-box: fill-box;
+	transform-origin: center;
+	animation-name: pop;
+	animation-duration: calc(var(--reveal-duration) * 0.6);
+	animation-timing-function: var(--pop-ease);
 }
 
 body {

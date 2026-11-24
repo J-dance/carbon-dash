@@ -32,7 +32,8 @@
 <Card>
 	<h2>Fuel mix now</h2>
 
-	<div class="bar" role="img" aria-label={summary}>
+	<!-- `reveal` is the shared chart entrance (see layout.css), order 0: the first chart to appear. -->
+	<div class="bar reveal" role="img" aria-label={summary}>
 		{#each segments as segment}
 			<div
 				class="segment {segment.group}"

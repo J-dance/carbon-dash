@@ -29,19 +29,19 @@ Each step lists the Svelte concepts it is meant to teach.
   - [x] Typed client for the Carbon Intensity API in `src/lib/api/`
   - [x] National "now" card: intensity, index badge, renewable %
   - [x] Concepts: `+page.server.ts` `load`, TypeScript with Svelte, components and props
-- [ ] **3. Postgres and my own API**
+- [x] **3. Postgres and my own API**
   - [x] Postgres in Docker and Drizzle setup
   - [x] Schema: `regions`, `readings` and `national_intensity` (see Data design)
   - [x] Migrations (Drizzle), with the 18 regions seeded by migration `0001`
   - [x] 90-day backfill script (see Backfill)
   - [x] Lazy refresh: re-fetch when the newest reading is over 60 minutes old, with a single-flight guard (`refreshIfStale` in `src/lib/server/ingest/lazyRefresh.ts`, built and tested; the endpoints below call it)
-  - [ ] `+server.ts` endpoints with query params (range, region, tier)
+  - [x] `+server.ts` endpoints with query params (range, region, tier)
     - [x] `GET /api/regions` (`range`, `tier`): the 14 regions with their tiers, used by the regions page
     - [x] `GET /api/national`: the latest period's intensity, the GB fuel mix and the 30-day average, used by the home page. Both endpoints call `refreshIfStale` first and say whether the data is still stale
     - [x] `GET /api/national/history?range=`: stored actual vs forecast for `24h`, `7d` or `30d` (counted back from the newest stored period), with the accuracy summary. Stored history only: the forward 48h forecast is a separate, cached live call (see Data design)
-    - [ ] `GET /api/regions/[id]`: one region's latest values and series, for the preview panel
+    - [x] `GET /api/regions/[id]?range=`: one region's latest reading (forecast, index, fuel mix), its tier over the range and its stored forecast series, for the preview panel. Ids 1-14 only (anything else is a 404). Stored history only, like `/api/national/history`
   - [x] Tier scores computed in SQL (`NTILE(3)`): `regionTiers` in `src/lib/server/db/tiers.ts`, tested against the local database (see Performance tiers)
-  - [ ] Concepts: server routes, `$env`, `$lib`, form actions if needed
+  - [x] Concepts: server routes, `$env`, `$lib`. Form actions were not needed: the app only reads data, so every endpoint is a `GET` and the step 5 filters can be plain links or `goto` with query params
 - [ ] **4. National dashboard charts**
   - [ ] Actual vs forecast (24h back, 48h forward), fuel mix, and the forecast accuracy view, as plain SVG using `d3-scale` and `d3-shape`
   - [ ] Concepts: `$derived` for scales and paths, transitions, `$effect` (sparingly)

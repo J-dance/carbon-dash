@@ -26,6 +26,21 @@ function isTier(value: string): value is Tier {
 	return (TIERS as readonly string[]).includes(value)
 }
 
+/** The distribution regions are ids 1-14. 15-18 are England, Scotland, Wales and GB (see the README, Data). */
+export const FIRST_REGION_ID = 1
+export const LAST_REGION_ID = 14
+
+/**
+ * Reads a region id from a URL path segment. Returns null unless it is a whole number from 1 to
+ * 14. The digits check comes first because `Number` is too forgiving: it turns '' into 0 and
+ * accepts '1e1', '0x0A' and ' 3 ', and none of those should be a region id.
+ */
+export function parseRegionId(value: string): number | null {
+	if (!/^\d+$/.test(value)) return null
+	const id = Number(value)
+	return id >= FIRST_REGION_ID && id <= LAST_REGION_ID ? id : null
+}
+
 export type ParsedRange = { range: Range } | { error: string }
 
 /**

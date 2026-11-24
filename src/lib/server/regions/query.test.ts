@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { parseRange, parseRegionsQuery, windowStart } from './query'
+import { parseRange, parseRegionId, parseRegionsQuery, windowStart } from './query'
 
 // Both functions are plain, so these tests need no stand-ins and no database.
 
@@ -82,6 +82,33 @@ describe('parseRegionsQuery: invalid values', () => {
 
 	test('rejects a bad tier even when the range is fine', () => {
 		expect(parse('range=7d&tier=banana')).toHaveProperty('error')
+	})
+})
+
+// ---------------------------------------------------------------------------------------------
+// parseRegionId
+// ---------------------------------------------------------------------------------------------
+
+describe('parseRegionId', () => {
+	test.each([1, 7, 13, 14])('accepts %i', (id) => {
+		expect(parseRegionId(String(id))).toBe(id)
+	})
+
+	// 15-18 are real region ids, but they are aggregates, not distribution regions.
+	test.each(['0', '15', '18', '99', '-1'])('rejects %j (outside 1-14)', (value) => {
+		expect(parseRegionId(value)).toBeNull()
+	})
+
+	// `Number` would turn '' into 0 and read '1e1' as 10, '0x0A' as 10 and ' 3 ' as 3.
+	test.each(['', 'abc', '1.5', '1e1', '0x0A', ' 3 ', '3 ', '+3', '3abc'])(
+		'rejects %j (not a whole number)',
+		(value) => {
+			expect(parseRegionId(value)).toBeNull()
+		}
+	)
+
+	test('accepts a leading zero, which still reads as the same number', () => {
+		expect(parseRegionId('07')).toBe(7)
 	})
 })
 

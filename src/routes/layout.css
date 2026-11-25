@@ -4,7 +4,8 @@
  * var(--name) and never hard-code colours or spacing.
  *
  * Contrast was checked for both themes: text 4.5:1 or more against --bg and
- * --surface, borders and the focus ring 3:1 or more.
+ * --surface, borders and the focus ring 3:1 or more. The same holds for the tier colours: their
+ * text against their own fill, and their borders against --surface.
  */
 :root {
 	color-scheme: light dark;
@@ -18,6 +19,18 @@
 	--accent: #0b6b4d;
 	--accent-contrast: #ffffff;
 	--focus-ring: #1b57c8;
+
+	/* Performance tiers: a tinted fill, dark text on it and a stronger border. Tier badges also
+	   carry an icon and a label, so colour is never the only signal. */
+	--tier-top-bg: #dcf3e8;
+	--tier-top-text: #0b4f38;
+	--tier-top-border: #0b6b4d;
+	--tier-middle-bg: #fdf0cc;
+	--tier-middle-text: #6b4a00;
+	--tier-middle-border: #8a6100;
+	--tier-bottom-bg: #fbe0dc;
+	--tier-bottom-text: #8a1f14;
+	--tier-bottom-border: #b3261a;
 
 	/* Spacing (rem, so it scales with the user's font size and zoom) */
 	--space-1: 0.25rem;
@@ -61,6 +74,15 @@
 		--accent: #5fd6a4;
 		--accent-contrast: #07140e;
 		--focus-ring: #8db4ff;
+		--tier-top-bg: #123a2b;
+		--tier-top-text: #9ae8c4;
+		--tier-top-border: #5fd6a4;
+		--tier-middle-bg: #3d3010;
+		--tier-middle-text: #f3d27a;
+		--tier-middle-border: #d9a82e;
+		--tier-bottom-bg: #4a1a15;
+		--tier-bottom-text: #ffb4a9;
+		--tier-bottom-border: #f08070;
 	}
 }
 

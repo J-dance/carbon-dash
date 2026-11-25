@@ -1,9 +1,6 @@
 <script lang="ts">
-	import {
-		TIER_LABELS,
-		type Range,
-		type RegionTier,
-	} from "#lib/regions/types.ts";
+	import type { Range, RegionTier } from "#lib/regions/types.ts";
+	import TierBadge from "./TierBadge.svelte";
 	import {
 		sortRegions,
 		type SortDirection,
@@ -92,8 +89,7 @@
 			<tr>
 				<th scope="row">{region.shortName}</th>
 				<td class="number">{Math.round(region.avgForecast)}</td>
-				<!-- Tiers are shown as words here. The icon and colour come later, with the tier badge. -->
-				<td>{TIER_LABELS[region.tier]}</td>
+				<td><TierBadge tier={region.tier} /></td>
 			</tr>
 		{/each}
 	</tbody>

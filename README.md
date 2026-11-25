@@ -51,6 +51,9 @@ Each step lists the Svelte concepts it is meant to teach.
   - [ ] Concepts: `$derived` for scales and paths, transitions, `$effect` (sparingly)
 - [ ] **5. Regions table and preview** (closest match to the job)
   - [ ] Sortable, filterable table with tier badges
+    - [x] Sortable columns: `sortRegions` in `src/lib/regions/sort.ts` (plain TypeScript, tested), with the sort key and direction as `$state` and the sorted list as `$derived` in `RegionsTable`. Each header is a real button with `aria-sort` on the sorted column, a `↕` / `▲` / `▼` icon, and a status line. The sort is local state, not in the URL. Ties always sort by name A to Z, in both directions
+    - [x] Filterable: period and tier links (see below)
+    - [ ] Tier badge (icon, label and colour) and the index word with a 5-step meter
   - [ ] Filters synced to URL query params (date range, tier, fuel source)
     - [x] Date range and tier: plain links (`FilterLinks`, wrapped by `RangeFilter` and `TierFilter`) that rewrite `?range=` and `?tier=` and keep the other params. Links rather than `goto`, so they work without JavaScript and open in a new tab. SvelteKit 3 spells "stay put and keep focus" as `data-sveltekit-reset="false"`, not the old `noscroll` and `keepfocus`
     - [ ] Fuel source: open. The endpoint returns no fuel data for the table, so this needs a column (renewable %) first, or should be dropped from the MVP

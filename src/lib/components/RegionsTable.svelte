@@ -1,34 +1,98 @@
 <script lang="ts">
-	import { TIER_LABELS, type Range, type RegionTier } from "#lib/regions/types.ts";
+	import {
+		TIER_LABELS,
+		type Range,
+		type RegionTier,
+	} from "#lib/regions/types.ts";
+	import {
+		sortRegions,
+		type SortDirection,
+		type SortKey,
+	} from "#lib/regions/sort.ts";
 
 	let { regions, range }: { regions: RegionTier[]; range: Range } = $props();
 
 	const RANGE_LABELS: Record<Range, string> = {
 		"24h": "the last 24 hours",
 		"7d": "the last 7 days",
-		"30d": "the last 30 days"
+		"30d": "the last 30 days",
 	};
 
-	// Tiers are shown as words here. The icon and colour come later, with the tier badge.
+	const COLUMN_LABELS: Record<SortKey, string> = {
+		name: "Region",
+		forecast: "Average forecast (gCO2/kWh)",
+		tier: "Tier",
+	};
+
+	// The endpoint returns the cleanest region first, so this default looks the same as
+	// the unsorted table.
+	let sortKey = $state<SortKey>("forecast");
+	let sortDirection = $state<SortDirection>("asc");
+
+	const sorted = $derived(sortRegions(regions, sortKey, sortDirection));
+
+	// The same words a screen reader gets from aria-sort, shown as text under the filters.
+	const sortStatus = $derived(
+		`Sorted by ${COLUMN_LABELS[sortKey]}, ${sortDirection === "asc" ? "ascending" : "descending"}.`,
+	);
+
+	// Clicking the active column flips the direction. Clicking another column starts it
+	// from the top.
+	function sortBy(key: SortKey) {
+		if (key === sortKey) {
+			sortDirection = sortDirection === "asc" ? "desc" : "asc";
+		} else {
+			sortKey = key;
+			sortDirection = "asc";
+		}
+	}
+
+	// Only the sorted column has aria-sort. `undefined` leaves the attribute off.
+	function ariaSortFor(key: SortKey): "ascending" | "descending" | undefined {
+		if (key !== sortKey) return undefined;
+		return sortDirection === "asc" ? "ascending" : "descending";
+	}
 </script>
+
+{#snippet sortHeader(key: SortKey, className?: string)}
+	<th scope="col" class={className} aria-sort={ariaSortFor(key)}>
+		<button type="button" onclick={() => sortBy(key)}>
+			{COLUMN_LABELS[key]}
+			<!-- aria-sort and the button itself already tell screen readers this, so the icons are hidden from them. -->
+			{#if key === sortKey}
+				<span aria-hidden="true">{sortDirection === "asc" ? "▲" : "▼"}</span>
+			{:else}
+				<span aria-hidden="true" class="idle-icon">↕</span>
+			{/if}
+		</button>
+	</th>
+{/snippet}
+
+<!-- Only the status span is live, so the hint is not read out again after every sort. -->
+<p class="sort-status">
+	<span role="status">{sortStatus}</span>
+	Select a column heading to change the sort.
+</p>
 
 <table>
 	<caption>
-		Carbon intensity by region, ranked over {RANGE_LABELS[range]}. Top is the cleanest third.
+		Carbon intensity by region, ranked over {RANGE_LABELS[range]}. Top is the
+		cleanest third.
 	</caption>
 	<thead>
 		<tr>
-			<th scope="col">Region</th>
-			<th scope="col" class="number">Average forecast (gCO2/kWh)</th>
-			<th scope="col">Tier</th>
+			{@render sortHeader("name")}
+			{@render sortHeader("forecast", "number")}
+			{@render sortHeader("tier")}
 		</tr>
 	</thead>
 	<tbody>
 		<!-- The key lets Svelte match each row to its region when the data changes. -->
-		{#each regions as region (region.regionId)}
+		{#each sorted as region (region.regionId)}
 			<tr>
 				<th scope="row">{region.shortName}</th>
 				<td class="number">{Math.round(region.avgForecast)}</td>
+				<!-- Tiers are shown as words here. The icon and colour come later, with the tier badge. -->
 				<td>{TIER_LABELS[region.tier]}</td>
 			</tr>
 		{/each}
@@ -52,6 +116,37 @@
 		padding: var(--space-2) var(--space-3);
 		border-bottom: var(--border-width) solid var(--border);
 		text-align: left;
+	}
+
+	.sort-status {
+		margin: 0 0 var(--space-2);
+		color: var(--text-muted);
+	}
+
+	/* A button does not inherit the header's text styling, so it is set back to match. The
+	   focus outline comes from the global :focus-visible rule. */
+	th button {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: 0;
+		border: none;
+		background: none;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+	}
+
+	/* Underlined as well as recoloured, so the change does not rely on colour alone. */
+	th button:hover {
+		color: var(--accent);
+		text-decoration: underline;
+		text-underline-offset: 0.25em;
+	}
+
+	/* The icon that says "this can be sorted" is quieter than the arrow on the active column. */
+	.idle-icon {
+		color: var(--text-muted);
 	}
 
 	/* Numbers line up on the right, and equal-width digits keep the columns tidy. */

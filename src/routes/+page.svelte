@@ -4,6 +4,8 @@
 	import FuelMixCard from "#lib/components/FuelMixCard.svelte";
 	import IntensityNowCard from "#lib/components/IntensityNowCard.svelte";
 	import LineChart from "#lib/components/LineChart.svelte";
+	import { compareToAverage } from "#lib/metrics/compare.ts";
+	import { gridStandfirst } from "#lib/national/standfirst.ts";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -28,23 +30,41 @@
 		const start = new Date(data.latest.period);
 		return { start, end: new Date(start.getTime() + PERIOD_MS) };
 	});
+
+	// The summary line under the headline, from the same comparison the "now" card shows. Like the
+	// card, it compares the forecast when the actual value is not in yet.
+	const standfirst = $derived.by(() => {
+		if (data.latest === null) return null;
+		const { actual, forecast } = data.latest.now;
+		const comparison = compareToAverage(actual ?? forecast, data.latest.average30d);
+		return gridStandfirst(comparison, actual === null);
+	});
 </script>
 
 <svelte:head>
 	<title>Home | Carbon Dash</title>
 </svelte:head>
 
-<h1>Great Britain Carbon Intensity</h1>
+<!-- Opens like a news article: a kicker (the small line above), the headline, then a standfirst
+	that says what the numbers mean. -->
+<header class="lede">
+	{#if period !== null}
+		<p class="kicker">
+			<span class="dot" aria-hidden="true"></span>
+			Latest 30-minute period:
+			<time datetime={period.start.toISOString()}>{timeFormat.format(period.start)}</time>
+			to
+			<time datetime={period.end.toISOString()}>{timeFormat.format(period.end)}</time>
+			UTC
+		</p>
+	{/if}
+	<h1>Great Britain Carbon Intensity</h1>
+	{#if standfirst !== null}
+		<p class="standfirst">{standfirst}</p>
+	{/if}
+</header>
 
 {#if data.latest !== null && period !== null}
-	<p class="period">
-		Latest 30-minute period:
-		<time datetime={period.start.toISOString()}>{timeFormat.format(period.start)}</time>
-		to
-		<time datetime={period.end.toISOString()}>{timeFormat.format(period.end)}</time>
-		UTC
-	</p>
-
 	{#if data.isStale}
 		<!-- The date is shown here because stale data can be days old. -->
 		<p class="stale">
@@ -70,19 +90,41 @@
 {/if}
 
 <style>
-	h1 {
-		margin-bottom: var(--space-2);
+	.lede {
+		display: grid;
+		gap: var(--space-3);
+		margin: var(--space-6) 0 var(--space-8);
 	}
 
-	.period {
-		margin-bottom: var(--space-4);
+	.kicker {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0 var(--space-1);
 		color: var(--text-muted);
-		font-size: var(--text-sm);
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
-	/* Below the period line, so only the bottom margin of the pair needs setting. */
-	.period:has(+ .stale) {
-		margin-bottom: var(--space-1);
+	/* A small marker before the kicker, as news sites use for a live story. It repeats nothing the
+	   words do not say, so it is hidden from screen readers. */
+	.dot {
+		width: 0.5rem;
+		height: 0.5rem;
+		margin-right: var(--space-1);
+		border-radius: var(--radius-pill);
+		background: var(--accent);
+	}
+
+	/* max-width in ch keeps the line a comfortable reading length on a wide screen. */
+	.standfirst {
+		max-width: 40ch;
+		font-family: var(--font-serif);
+		font-size: var(--text-standfirst);
+		line-height: 1.35;
+		text-wrap: pretty;
 	}
 
 	.stale {

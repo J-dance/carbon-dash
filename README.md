@@ -248,6 +248,13 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
   - **Failure:** a failed refresh is logged, and the stored data is used.
   - **What it returns:** a `StoredState` (`newestPeriod`, `isStale`). It describes the data after the attempt, not whether the attempt worked, because the page shows the same thing either way: a "data from ..." note when `isStale` is true.
 - **Being polite to the API:** it is free and keyless, and I found no published rate limit (not tested on purpose). Fetch sequentially, never `Promise.all` across many chunks. Cache any live call (such as the stretch 48h forecast) for a few minutes and serve with `Cache-Control`, so most reads hit Postgres. Retry with backoff on 429 and 5xx, with a limited number of attempts.
+- **Page caching (browser only):** the three pages' `load` functions set `Cache-Control: private, max-age=60` with `setHeaders` (`PAGE_MAX_AGE_SECONDS` in `src/lib/constants.ts`), so back/forward and repeat filter clicks reuse the page and its `__data.json` without running the queries again. Decisions (2026-11-26):
+  - **Set in `load`, not the endpoints:** `load` calls the endpoints in-process, so their response headers never reach the browser.
+  - **`private`:** nothing shared (CDN, proxy) sits in front of the single server, and this keeps it safe if that changes.
+  - **60 seconds:** a new period can arrive at any time, so a longer cache could keep the previous one on screen.
+  - **Only when `isStale` is false, and after the error checks:** after a failed refresh the next visit should try again, and an error page should never be cached.
+  - **Known side effect:** on `/regions` the header is decided by the list alone, because headers go out before the streamed preview panel arrives. If the panel fails, back/forward can show that failure again for up to 60 seconds. A reload asks the server again.
+  - **Not done:** caching query results in memory. The queries are small and indexed, so it is not worth it without a measurement showing they are slow.
 
 ### Data quirks to handle
 

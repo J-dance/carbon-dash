@@ -2,8 +2,9 @@ import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 import type { RegionDetailResponse, RegionsResponse } from "#lib/server/regions/response.ts";
 import { parseRegionId } from "#lib/regions/selection.ts";
+import { PAGE_MAX_AGE_SECONDS } from "#lib/constants.ts";
 
-export const load: PageServerLoad = async ({ fetch, url }) => {
+export const load: PageServerLoad = async ({ fetch, url, setHeaders }) => {
 	// The region chosen in the table (?region=13), or null when none is.
 	const regionId = parseRegionId(url.searchParams.get('region'))
 
@@ -33,6 +34,13 @@ export const load: PageServerLoad = async ({ fetch, url }) => {
 	}
 
 	const data: RegionsResponse = await response.json()
+
+	// Lets the browser reuse this page for back/forward and repeat filter clicks. Only for fresh
+	// data, and set after the error checks so an error page is never cached. It is decided by the
+	// list alone: the headers go out before the streamed `detail` has arrived.
+	if (!data.isStale) {
+		setHeaders({ "Cache-Control": `private, max-age=${PAGE_MAX_AGE_SECONDS}` })
+	}
 
 	return { ...data, detail }
 }

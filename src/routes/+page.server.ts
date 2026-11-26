@@ -1,8 +1,9 @@
 import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 import type { NationalHistoryResponse, NationalResponse } from "#lib/server/national/response.ts";
+import { PAGE_MAX_AGE_SECONDS } from "#lib/constants.ts";
 
-export const load: PageServerLoad = async ({ fetch }) => {
+export const load: PageServerLoad = async ({ fetch, setHeaders }) => {
 	// These fetches call our own endpoints in-process, so the page and the endpoints share one data
 	// path (see the README, Plan step 3). They do not depend on each other, so they run together.
 	const [nationalResponse, historyResponse] = await Promise.all([
@@ -23,5 +24,13 @@ export const load: PageServerLoad = async ({ fetch }) => {
 
 	const national: NationalResponse = await nationalResponse.json()
 	const history: NationalHistoryResponse = await historyResponse.json()
+
+	// Lets the browser reuse this page for back/forward without asking the server again. Only for
+	// fresh data: after a failed refresh the next visit should try again, not replay the stale note.
+	// Set after the error checks, so an error page is never cached.
+	if (!national.isStale) {
+		setHeaders({ "Cache-Control": `private, max-age=${PAGE_MAX_AGE_SECONDS}` })
+	}
+
 	return { ...national, history }
 }

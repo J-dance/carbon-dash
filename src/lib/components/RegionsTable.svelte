@@ -2,6 +2,8 @@
 	import { page } from "$app/state";
 	import { RANGE_PHRASES, type Range, type RegionTier } from "#lib/regions/types.ts";
 	import { withParam } from "#lib/url.ts";
+	import { indexForIntensity } from "#lib/metrics/intensity-index.ts";
+	import IndexBadge from "./IndexBadge.svelte";
 	import TierBadge from "./TierBadge.svelte";
 	import {
 		sortRegions,
@@ -22,7 +24,7 @@
 
 	const COLUMN_LABELS: Record<SortKey, string> = {
 		name: "Region",
-		forecast: "Average forecast (gCO2/kWh)",
+		forecast: "Average forecast (gCO2/kWh) and index",
 		tier: "Tier",
 	};
 
@@ -104,7 +106,14 @@
 						{region.shortName}
 					</a>
 				</th>
-				<td class="number">{Math.round(region.avgForecast)}</td>
+				<!-- The index shares the average's cell, not a column of its own: it is a reading of that
+				     number, and a fourth column made the table too wide for a phone. -->
+				<td class="number">
+					<span class="forecast">
+						{Math.round(region.avgForecast)}
+						<IndexBadge index={indexForIntensity(region.avgForecast)} />
+					</span>
+				</td>
 				<td><TierBadge tier={region.tier} /></td>
 			</tr>
 		{/each}
@@ -123,11 +132,20 @@
 		text-align: left;
 	}
 
+	/* Tight padding first, so the table fits a phone without scrolling sideways, and roomier
+	   from 40rem wide. */
 	th,
 	td {
-		padding: var(--space-2) var(--space-3);
+		padding: var(--space-2);
 		border-bottom: var(--border-width) solid var(--border);
 		text-align: left;
+	}
+
+	@media (min-width: 40rem) {
+		th,
+		td {
+			padding: var(--space-2) var(--space-3);
+		}
 	}
 
 	.sort-status {
@@ -181,5 +199,14 @@
 	.number {
 		text-align: right;
 		font-variant-numeric: tabular-nums;
+	}
+
+	/* The number above its index badge, both on the right, so the numbers still line up down the
+	   column whatever the width of the badge. */
+	.forecast {
+		display: inline-flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: var(--space-1);
 	}
 </style>

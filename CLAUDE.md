@@ -35,7 +35,7 @@ This is also a **learning project**. Each step in the README plan lists the Svel
 ## Tech stack and commands
 
 - SvelteKit 3, Svelte 5, Vite 8, TypeScript (strict), pnpm
-- Planned: Postgres with Drizzle, `d3-scale` and `d3-shape` for plain SVG charts, Vitest, Playwright
+- Postgres with Drizzle, `d3-scale` and `d3-shape` for plain SVG charts, Vitest. No Playwright (dropped from the MVP, see README step 6)
 - Check the current `package.json` for what is actually installed. Do not assume planned tools are present.
 
 ```bash
@@ -106,7 +106,6 @@ The UI should be **simple, modern and visual**: calm and uncluttered, with the d
 ## Testing
 
 - Add Vitest tests for pure logic (tier scores, accuracy metrics, API client parsing) alongside the code that introduces it.
-- Keep one Playwright smoke test for the main flows once step 6 is reached.
 - Run `pnpm check` after changes, and run tests when they exist. Report failures honestly with the output, and do not claim something works without having run it.
 
 ## Documentation

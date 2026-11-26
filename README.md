@@ -15,6 +15,7 @@ An analytics dashboard for the [UK Carbon Intensity API](https://carbon-intensit
 - Interactive map of regions
 - Stretch metrics listed under Metrics (time-of-day profile, volatility, index distribution, rank movement, emissions by fuel)
 - Scheduled ingest (cron) instead of lazy refresh, and longer history than 90 days
+- A Playwright smoke test for the main flows
 
 ## Plan
 
@@ -76,10 +77,11 @@ Each step lists the Svelte concepts it is meant to teach.
     - **No fuel mix over time on the detail page (decided 2026-11-26).** The Visualisations table planned a stacked area, but the endpoint returns only the latest mix, so it needs a new query and a new chart type. Moved to stretch, like the national fuel mix over time. No param matcher (`[id=region]`) either: SvelteKit 3 changed matchers to Standard Schema (`defineParams`), and the endpoint already returns a 404 for unknown ids
   - [x] Concepts: dynamic routes (`/regions/[id]`), `$app/state` and `goto`, shared state in a `.svelte.ts` module, `<svelte:boundary>`. `goto` and shared `.svelte.ts` state were not needed (links do the navigation, and the URL holds the shared state), so they were explained rather than used
 - [ ] **6. Accessibility, tests and feedback**
-  - [ ] Keyboard navigation, focus states, `aria` labels, text/table alternative for each chart, tier not shown by colour alone
+  - [x] Keyboard navigation, focus states, `aria` labels, text/table alternative for each chart, tier not shown by colour alone. Built in during steps 4 and 5 (skip link, `:focus-visible` styles, `aria-sort` and `aria-current` in the table, a data table behind each line chart, tier badges with icon and label) and checked with the Lighthouse audit below
   - [x] Regions table at 320px wide (WCAG reflow): it was about 30px too wide at 320px, held up by the "(gCO2/kWh)" heading and the tier badges. Fixed in the restyle: the heading is now "Average forecast" with the unit in the caption, and below 40rem the table text, cell padding and badges are a step smaller
-  - [ ] axe / Lighthouse audit, record scores
-  - [ ] Vitest for tier logic and API client, one Playwright smoke test
+  - [x] Lighthouse audit, record scores: **Accessibility 100** (2026-11-26). Kept light on purpose: markup, colours and layout, with no full manual screen reader pass
+  - [x] Vitest for tier logic and API client: `src/lib/server/db/tiers.test.ts`, `src/lib/api/client.test.ts` and `src/lib/api/parse.test.ts`, alongside tests for the other pure logic (run with `pnpm test`, see Local setup)
+  - **No Playwright smoke test (decided 2026-11-26).** Skipped for the MVP, so the app's tests are the Vitest suite only. Moved to stretch
   - [ ] Show 2-3 people the app, write up what they struggled with, make one visible change
 - [ ] **7. Deploy and write up**
   - [ ] Hosted Postgres (Neon free) on a free Node host, and a live demo link (see Hosting)

@@ -3,6 +3,7 @@
 	import type { PageProps } from "./$types";
 	import { parseRegionId } from "#lib/regions/selection.ts";
 	import RangeFilter from "#lib/components/RangeFilter.svelte";
+	import RegionGapTile from "#lib/components/RegionGapTile.svelte";
 	import RegionPreview from "#lib/components/RegionPreview.svelte";
 	import RegionsTable from "#lib/components/RegionsTable.svelte";
 	import TierFilter from "#lib/components/TierFilter.svelte";
@@ -56,6 +57,10 @@
 		<RangeFilter current={data.range} />
 		<TierFilter current={data.tier} />
 	</div>
+
+	{#if data.gap !== null}
+		<RegionGapTile gap={data.gap} range={data.range} />
+	{/if}
 
 	<!-- Master-detail (README, UI decisions): the table, with the preview panel beside it on a wide
 		screen and below it on a narrow one. -->

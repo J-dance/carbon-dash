@@ -1,4 +1,5 @@
 import type { Fuel, Index } from '#lib/api/types.ts'
+import type { RegionGap } from '#lib/regions/stats.ts'
 import type { Range, RegionTier, Tier } from '#lib/regions/types.ts'
 
 /**
@@ -12,6 +13,11 @@ export interface RegionsResponse {
 	newestPeriod: string | null
 	isStale: boolean
 	regions: RegionTier[]
+	/**
+	 * The cleanest and dirtiest of all 14 regions over the range, whatever the tier filter.
+	 * Null when there is no data.
+	 */
+	gap: RegionGap | null
 }
 
 /** One region's forecast for one 30-minute period, as `GET /api/regions/[id]` returns it. */

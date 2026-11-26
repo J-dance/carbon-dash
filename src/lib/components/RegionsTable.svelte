@@ -127,30 +127,54 @@
 	}
 
 	caption {
-		padding-bottom: var(--space-2);
+		padding-bottom: var(--space-3);
 		color: var(--text-muted);
+		font-size: var(--text-sm);
 		text-align: left;
 	}
 
 	/* Tight padding first, so the table fits a phone without scrolling sideways, and roomier
-	   from 40rem wide. */
+	   from 40rem wide. Rows are split by quiet hairlines; the header has the stronger rule. */
 	th,
 	td {
-		padding: var(--space-2);
-		border-bottom: var(--border-width) solid var(--border);
+		padding: var(--space-3) var(--space-2);
+		border-bottom: var(--border-width) solid var(--hairline);
 		text-align: left;
+	}
+
+	thead th {
+		border-bottom-color: var(--border);
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+
+	tbody tr:last-child > * {
+		border-bottom: none;
 	}
 
 	@media (min-width: 40rem) {
 		th,
 		td {
-			padding: var(--space-2) var(--space-3);
+			padding-inline: var(--space-3);
 		}
 	}
 
 	.sort-status {
-		margin: 0 0 var(--space-2);
+		margin: 0 0 var(--space-3);
 		color: var(--text-muted);
+		font-size: var(--text-sm);
+	}
+
+	/* Region names read as names first, with a quiet underline that still marks them as links. */
+	tbody th a {
+		color: var(--text);
+		font-weight: 500;
+		text-decoration-color: var(--border);
+	}
+
+	tbody th a:hover {
+		text-decoration-color: currentColor;
 	}
 
 	/* A button does not inherit the header's text styling, so it is set back to match. The
@@ -178,7 +202,7 @@
 	   the bold text mean the selection does not rely on the tint's colour alone. An inset shadow
 	   draws the bar without changing the cell's width. */
 	tr.selected {
-		background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+		background: color-mix(in srgb, var(--accent) 10%, var(--surface));
 	}
 
 	tr.selected th {
@@ -208,5 +232,6 @@
 		flex-direction: column;
 		align-items: flex-end;
 		gap: var(--space-1);
+		font-weight: 600;
 	}
 </style>

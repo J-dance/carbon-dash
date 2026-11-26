@@ -22,16 +22,18 @@
 
 <nav aria-label={label}>
 	<span class="label">{label}</span>
-	{#each options as option (option.value)}
-		<!-- reset="false": after the navigation, stay where you are on the page and keep keyboard focus on the link you pressed. -->
-		<a
-			href={withParam(page.url.search, param, option.value)}
-			aria-current={option.value === current ? "true" : undefined}
-			data-sveltekit-reset="false"
-		>
-			{option.label}
-		</a>
-	{/each}
+	<div class="track">
+		{#each options as option (option.value)}
+			<!-- reset="false": after the navigation, stay where you are on the page and keep keyboard focus on the link you pressed. -->
+			<a
+				href={withParam(page.url.search, param, option.value)}
+				aria-current={option.value === current ? "true" : undefined}
+				data-sveltekit-reset="false"
+			>
+				{option.label}
+			</a>
+		{/each}
+	</div>
 </nav>
 
 <style>
@@ -39,18 +41,45 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: var(--space-4);
+		gap: var(--space-2) var(--space-3);
 	}
 
 	.label {
 		color: var(--text-muted);
+		font-size: var(--text-sm);
 	}
 
-	/* The current option is bold and underlined as well as set apart by colour. */
-	a[aria-current="true"] {
+	/* A segmented control: the options sit in one rounded track, like the pill toggles in the
+	   design reference. It wraps if a phone is too narrow for every option. */
+	.track {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 2px;
+		padding: 3px;
+		border-radius: var(--radius-pill);
+		background: var(--surface-sunken);
+		box-shadow: inset 0 0 0 var(--border-width) var(--hairline);
+	}
+
+	a {
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius-pill);
 		color: var(--text);
-		font-weight: 700;
-		text-decoration: underline;
-		text-underline-offset: 0.25em;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		text-decoration: none;
+		transition: background-color var(--transition-fast);
+	}
+
+	a:hover {
+		background: var(--surface);
+	}
+
+	/* The current option is inverted, like the current page in the masthead: a change in lightness
+	   that reads without colour vision. Screen readers get it from aria-current. */
+	a[aria-current="true"] {
+		background: var(--text);
+		color: var(--surface);
+		font-weight: 600;
 	}
 </style>

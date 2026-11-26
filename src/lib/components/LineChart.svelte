@@ -343,17 +343,20 @@
 
 	text {
 		fill: var(--text-muted);
-		font-size: var(--text-sm);
+		font-size: var(--text-xs);
+		font-variant-numeric: tabular-nums;
 	}
 
+	/* Quiet gridlines: the tick labels, the readout and the table carry the values, so the lines
+	   only guide the eye. */
 	.grid {
-		stroke: var(--border);
-		stroke-opacity: 0.35;
+		stroke: var(--hairline);
 	}
 
 	.series {
 		fill: none;
-		stroke-width: 2;
+		stroke-width: 2.5;
+		stroke-linecap: round;
 		stroke-linejoin: round;
 	}
 
@@ -363,7 +366,7 @@
 
 	.forecast {
 		stroke: var(--accent);
-		stroke-dasharray: 6 4;
+		stroke-dasharray: 5 5;
 	}
 
 	/* The key swatches are their own small SVGs, so they must not stretch to full width. */
@@ -439,18 +442,25 @@
 		width: 24px;
 	}
 
+	/* Set off from the chart by a hairline, so the table reads as a footnote to the widget. */
 	details {
 		margin-top: var(--space-4);
+		padding-top: var(--space-3);
+		border-top: var(--border-width) solid var(--hairline);
 		font-size: var(--text-sm);
 	}
 
 	summary {
+		width: fit-content;
+		color: var(--accent);
+		font-weight: 500;
 		cursor: pointer;
 	}
 
 	table {
 		margin-top: var(--space-2);
 		border-collapse: collapse;
+		font-variant-numeric: tabular-nums;
 	}
 
 	caption {
@@ -462,7 +472,13 @@
 	th,
 	td {
 		padding: var(--space-1) var(--space-3);
-		border-bottom: var(--border-width) solid var(--border);
+		border-bottom: var(--border-width) solid var(--hairline);
 		text-align: left;
+	}
+
+	thead th {
+		border-bottom-color: var(--border);
+		color: var(--text-muted);
+		font-weight: 600;
 	}
 </style>

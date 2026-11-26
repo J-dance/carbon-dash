@@ -33,9 +33,9 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-1);
-		padding: var(--space-1) var(--space-2);
+		padding: 2px var(--space-3) 2px var(--space-2);
 		border: var(--border-width) solid var(--tier-border);
-		border-radius: var(--radius-sm);
+		border-radius: var(--radius-pill);
 		background: var(--tier-bg);
 		color: var(--tier-text);
 		font-size: var(--text-sm);

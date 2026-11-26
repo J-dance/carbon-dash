@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ForecastTiles from "#lib/components/ForecastTiles.svelte";
 	import FuelMixBar from "#lib/components/FuelMixBar.svelte";
 	import Sparkline from "#lib/components/Sparkline.svelte";
 	import TierBadge from "#lib/components/TierBadge.svelte";
@@ -30,21 +31,9 @@
 	</p>
 
 	<!-- Big numbers for a quick read. They are also the text alternative for the sparkline. -->
-	<dl class="tiles">
-		<div>
-			<dt>Latest</dt>
-			<dd><span class="value">{latest.forecast}</span> {latest.index}</dd>
-		</div>
-		<div>
-			<dt>Lowest</dt>
-			<dd><span class="value">{extremes.low}</span></dd>
-		</div>
-		<div>
-			<dt>Highest</dt>
-			<dd><span class="value">{extremes.high}</span></dd>
-		</div>
-	</dl>
-	<p class="unit">Forecasts in gCO₂/kWh. Latest is the newest period, lowest and highest are over {rangePhrase}.</p>
+	<div class="tiles">
+		<ForecastTiles {latest} {extremes} range={detail.range} />
+	</div>
 
 	<section>
 		<h3>Forecast over {rangePhrase}</h3>
@@ -58,6 +47,12 @@
 		<h3>Fuel mix now</h3>
 		<FuelMixBar mix={latest.mix} />
 	</section>
+
+	<!-- The range goes with it, so the detail page opens on the same period. The region's name is in
+		the link text, so the link makes sense on its own (for example in a screen reader's links list). -->
+	<p class="more">
+		<a href="/regions/{ranked.regionId}?range={detail.range}">Full detail for {ranked.shortName}</a>
+	</p>
 {/if}
 
 <style>
@@ -75,41 +70,9 @@
 		font-size: var(--text-sm);
 	}
 
-	/* Three equal tiles. min-width: 0 lets them shrink on a narrow panel instead of overflowing. */
-	.tiles {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: var(--space-2);
+	.tiles,
+	.more {
 		margin-top: var(--space-4);
-	}
-
-	.tiles div {
-		padding: var(--space-2);
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--radius-sm);
-	}
-
-	dt {
-		color: var(--text-muted);
-		font-size: var(--text-sm);
-	}
-
-	dd {
-		font-size: var(--text-sm);
-	}
-
-	.value {
-		display: block;
-		font-size: var(--text-xl);
-		font-weight: 700;
-		font-variant-numeric: tabular-nums;
-		line-height: 1.2;
-	}
-
-	.unit {
-		margin-top: var(--space-1);
-		color: var(--text-muted);
-		font-size: var(--text-sm);
 	}
 
 	section {

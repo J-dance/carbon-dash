@@ -1,8 +1,21 @@
 import { error } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
-import type { RegionsResponse } from "#lib/server/regions/response.ts";
+import type { RegionDetailResponse, RegionsResponse } from "#lib/server/regions/response.ts";
+import { parseRegionId } from "#lib/regions/selection.ts";
 
 export const load: PageServerLoad = async ({ fetch, url }) => {
+	// The region chosen in the table (?region=13), or null when none is.
+	const regionId = parseRegionId(url.searchParams.get('region'))
+
+	// Not awaited: returning the promise makes SvelteKit stream it, so the table renders straight
+	// away and the preview panel fills in when this arrives. It is started before the list is
+	// awaited, so the two requests run at the same time.
+	const detail = regionId === null ? null : loadRegionDetail(fetch, regionId, url.search)
+	// It can fail while the list below is still loading, before SvelteKit has been handed the
+	// promise. Node stops the whole server on a rejection nobody handles, so mark it handled here.
+	// This adds a handler and changes nothing else: the page's {:catch} still gets the error.
+	detail?.catch(() => { })
+
 	// Pass the page's own query string on (?range=7d&tier=top), so the endpoint stays the only
 	// place that reads and validates those params. This fetch calls the endpoint in-process.
 	const response = await fetch("/api/regions" + url.search)
@@ -20,5 +33,31 @@ export const load: PageServerLoad = async ({ fetch, url }) => {
 	}
 
 	const data: RegionsResponse = await response.json()
-	return data
+
+	return { ...data, detail }
+}
+
+/**
+ * One region's preview data from `GET /api/regions/[id]`. `search` is the page's query string:
+ * the endpoint reads `range` from it and ignores the rest.
+ *
+ * It resolves to the parsed JSON, not the `Response`: a streamed promise has to resolve to plain
+ * data that SvelteKit can send to the browser. It resolves to null when the region does not exist.
+ * Any other failed request throws, which rejects the promise and shows the page's `{:catch}`
+ * branch. SvelteKit logs a plain `Error` on the server but does not send its text to the browser,
+ * so the page shows its own message.
+ */
+async function loadRegionDetail(
+	fetch: typeof globalThis.fetch,
+	regionId: number,
+	search: string
+): Promise<RegionDetailResponse | null> {
+	const response = await fetch(`/api/regions/${regionId}${search}`)
+	// A 404 is an expected case, not a failure: a mistyped or out-of-date shared link. The endpoint
+	// is the one place that knows which ids are regions, so this does not check the id itself.
+	if (response.status === 404) return null
+	if (!response.ok) {
+		throw new Error(`Could not load region ${regionId}: ${response.status}`)
+	}
+	return response.json()
 }

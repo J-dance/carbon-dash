@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import type { Range, RegionTier } from "#lib/regions/types.ts";
+	import { RANGE_PHRASES, type Range, type RegionTier } from "#lib/regions/types.ts";
 	import { withParam } from "#lib/url.ts";
 	import TierBadge from "./TierBadge.svelte";
 	import {
@@ -19,12 +19,6 @@
 		/** The region chosen with ?region=, or null when none is. */
 		selectedId: number | null;
 	} = $props();
-
-	const RANGE_LABELS: Record<Range, string> = {
-		"24h": "the last 24 hours",
-		"7d": "the last 7 days",
-		"30d": "the last 30 days",
-	};
 
 	const COLUMN_LABELS: Record<SortKey, string> = {
 		name: "Region",
@@ -84,7 +78,7 @@
 
 <table>
 	<caption>
-		Carbon intensity by region, ranked over {RANGE_LABELS[range]}. Top is the
+		Carbon intensity by region, ranked over {RANGE_PHRASES[range]}. Top is the
 		cleanest third.
 	</caption>
 	<thead>

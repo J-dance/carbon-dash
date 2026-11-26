@@ -19,6 +19,13 @@ export type Range = '24h' | '7d' | '30d'
 
 export const RANGES: readonly Range[] = ['24h', '7d', '30d']
 
+/** Each range as a phrase to use in a sentence: "ranked over the last 24 hours". */
+export const RANGE_PHRASES: Record<Range, string> = {
+	'24h': 'the last 24 hours',
+	'7d': 'the last 7 days',
+	'30d': 'the last 30 days'
+}
+
 export interface RegionTier {
 	regionId: number
 	shortName: string

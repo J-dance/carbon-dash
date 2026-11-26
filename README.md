@@ -2,6 +2,8 @@
 
 An analytics dashboard for the [UK Carbon Intensity API](https://carbon-intensity.github.io/api-definitions/), built with SvelteKit and Postgres.
 
+**Live demo:** https://carbon-dash-jpo6.onrender.com. It runs on a free tier, so the first load after a quiet spell can take about a minute while the server wakes (see Hosting).
+
 **In scope (MVP)**
 
 - National dashboard: current intensity, renewable %, history and forecast charts, fuel mix
@@ -84,7 +86,7 @@ Each step lists the Svelte concepts it is meant to teach.
   - **No Playwright smoke test (decided 2026-11-26).** Skipped for the MVP, so the app's tests are the Vitest suite only. Moved to stretch
   - [ ] Show 2-3 people the app, write up what they struggled with, make one visible change
 - [ ] **7. Deploy and write up**
-  - [ ] Hosted Postgres (Neon free) on a free Node host, and a live demo link (see Hosting)
+  - [x] Hosted Postgres (Neon free) on a free Node host (Render), and a live demo link (see Hosting, Deploy)
   - [ ] Screenshots, "what I learned", and how I used AI tools (what I reviewed, tested and rejected)
 
 ## Local setup
@@ -124,7 +126,7 @@ For 90 days it stores 77,760 `readings` rows (18 regions x 4,320 periods) and 4,
 **Only when you run it. Nothing triggers it** (no deploy hook, no cron, and the app never calls it). It is a one-off setup step for each database:
 
 - **Local:** the first time you set up, after `pnpm db:migrate` (see Local setup). It is not needed again unless you reset the database with `docker compose down -v`.
-- **Production (step 7):** once, from your own machine, against the hosted database. Run `pnpm db:migrate` first, then the backfill, with `DATABASE_URL` set to the hosted connection string for that one command (do not put it in a committed file). It runs from your machine rather than the host because it takes longer than many hosts allow a request to run.
+- **Production (step 7):** once, from your own machine, against the hosted database. Run `pnpm db:migrate` first, then the backfill, with `DATABASE_URL` set to the hosted connection string for that one command (do not put it in a committed file). It runs from your machine rather than the host because it takes longer than many hosts allow a request to run. The exact commands are under Hosting, Deploy.
 
 After that, **lazy refresh keeps the data current** (see Data design, Ingest and refresh): a visit that finds the newest period more than 60 minutes old re-fetches from the newest stored period, or the last 48 hours if that is more recent. It fills gaps of up to 90 days by itself, in pieces, in the background if it takes longer than 5 seconds (about 30 seconds for a full 90 days). Run the backfill again only for a gap longer than 90 days, or after resetting the database.
 
@@ -154,10 +156,12 @@ pnpm db:backfill
 - Long quiet periods are expected, so the refresh catches up after a gap (up to 90 days) in the background. A short-lived serverless request could not do that.
 - The job posting does not mention serverless or Cloudflare, and the extra infrastructure would take time from what the project is meant to show (Svelte, accessibility, charts, tests).
 
-**Candidates for step 7.** The prices and limits below come from third-party sources and have not been checked on the providers' own pages, so confirm them before relying on them.
+**Chosen for step 7 (deployed 2026-11-26).** The prices and limits below come from third-party sources and have not been checked on the providers' own pages, so confirm them before relying on them.
 
-- **Server:** a Render free web service, which sleeps after 15 minutes without traffic, so the first visitor after a quiet spell waits roughly 30-60 seconds. An always-on option at about $5-7 a month (Railway Hobby, Render Starter or a small VPS) avoids that.
+- **Server:** a Render free web service. It sleeps after 15 minutes without traffic, and Render warns that this can delay the next request by 50 seconds or more. An always-on option at about $5-7 a month (Railway Hobby, Render Starter or a small VPS) avoids that.
 - **Database:** Neon free. Its compute sleeps when idle and wakes in a fraction of a second, and the data is kept. Avoid Supabase free: it is reported to pause a project after a week of inactivity, and a paused project has to be restarted by hand.
+
+**The cold start is accepted, and said next to the demo link.** If it matters (for example while applying for jobs), switch to Render's paid plan for that period: no code changes. A keep-alive pinger was rejected: pinging `/` every few minutes would trigger lazy refresh every hour, which brings back the scheduled API calls this design avoids, and it would keep Neon's compute awake too.
 
 **If I deployed on serverless.** `readStoredState`, `isStale` and `ingestRange` stay as they are. These change:
 
@@ -165,6 +169,35 @@ pnpm db:backfill
 - Visitors who lose the claim cannot wait for the winner, because separate instances cannot share a promise. They get the stored data and an "updating" status.
 - The refresh has to stay short, because the platform limits time and outbound requests per call. No long catch-ups: cap a gap at 13 days and leave older gaps to the backfill.
 - The database connection has to be pooled or HTTP-based (for example Hyperdrive or Neon's serverless driver), not a plain `postgres` connection per call.
+
+### Deploy
+
+**Database (Neon).** One Neon project. The app uses the **direct** connection string (connection pooling off in Neon's Connect dialog), with `?sslmode=require`. Neon's pooler is for serverless code that opens many short connections; one long-lived server keeps a small pool of its own through `postgres`.
+
+Set the database up once, from your own machine, in a terminal tab you close afterwards:
+
+```bash
+read -s "DATABASE_URL?Neon connection string: " && export DATABASE_URL
+pnpm db:migrate
+pnpm db:backfill
+```
+
+- `read -s` keeps the string (which holds the password) off the screen and out of the shell history. The exported variable takes priority over the local `.env`, which keeps pointing at Docker. Closing the tab makes later commands use the local database again.
+- Check in Neon's Tables view that `readings` and `national_intensity` have rows, to be sure the data did not go to Docker.
+- Run `pnpm db:migrate` the same way after adding a migration.
+- Neon's own setup prompt (`neon init` and `neon deploy`) was not used: it writes the hosted connection string into `.env`, adds config files the app does not need, and points towards Neon's serverless driver, which suits serverless hosts rather than one Node server.
+
+**Server (Render free web service).** `adapter-node` turns the build into a standalone Node server in `build/`, which Render starts with `node build`.
+
+- Build command: `corepack pnpm install --frozen-lockfile && corepack pnpm build`. Not `corepack enable && pnpm ...`: `corepack enable` writes a `pnpm` link into `/usr/bin`, which is read-only on Render (`EROFS`). `corepack pnpm` runs the pnpm version named in `packageManager` without that link.
+- Start command: `node build`
+- Environment variables:
+  - `DATABASE_URL`: the Neon connection string
+  - `ORIGIN`: `https://carbon-dash-jpo6.onrender.com`, the public URL, which adapter-node needs because it cannot tell it from behind Render's proxy
+  - `NODE_VERSION`: `26`, to match local development
+  - `COREPACK_ENABLE_DOWNLOAD_PROMPT`: `0`, so Corepack never stops to ask before downloading pnpm
+- `PORT` is set by Render and read by adapter-node.
+- Every push to `main` redeploys. To try the production build locally first: `pnpm build`, then `PORT=4180 ORIGIN=http://localhost:4180 node --env-file=.env build` (against the local database).
 
 ## Sections
 

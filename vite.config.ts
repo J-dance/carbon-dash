@@ -16,5 +16,11 @@ export default defineConfig({
 			// single-flight guard in memory (see Hosting in the README).
 			adapter: adapter()
 		})
-	]
+	],
+	build: {
+		// The colour tokens use light-dark() (layout.css), which needs these browsers or newer. With
+		// Vite's older default targets, the production CSS minifier (Lightning CSS) rewrites
+		// light-dark() to follow only the system setting, and the theme toggle stops working.
+		cssTarget: ['chrome123', 'edge123', 'firefox120', 'safari17.5', 'ios17.5']
+	}
 });

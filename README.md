@@ -38,26 +38,29 @@ Each step lists the Svelte concepts it is meant to teach.
   - [x] `+server.ts` endpoints with query params (range, region, tier)
     - [x] `GET /api/regions` (`range`, `tier`): the 14 regions with their tiers, used by the regions page
     - [x] `GET /api/national`: the latest period's intensity, the GB fuel mix and the 30-day average, used by the home page. Both endpoints call `refreshIfStale` first and say whether the data is still stale
-    - [x] `GET /api/national/history?range=`: stored actual vs forecast for `24h`, `7d` or `30d` (counted back from the newest stored period), with the accuracy summary. Stored history only: the forward 48h forecast is a separate, cached live call (see Data design)
+    - [x] `GET /api/national/history?range=`: stored actual vs forecast for `24h`, `7d` or `30d` (counted back from the newest stored period), with the accuracy summary. Stored history only. A forward 48h forecast would be a separate, cached live call, but it was dropped from the MVP (see step 4)
     - [x] `GET /api/regions/[id]?range=`: one region's latest reading (forecast, index, fuel mix), its tier over the range and its stored forecast series, for the preview panel. Ids 1-14 only (anything else is a 404). Stored history only, like `/api/national/history`
   - [x] Tier scores computed in SQL (`NTILE(3)`): `regionTiers` in `src/lib/server/db/tiers.ts`, tested against the local database (see Performance tiers)
   - [x] Concepts: server routes, `$env`, `$lib`. Form actions were not needed: the app only reads data, so every endpoint is a `GET` and the step 5 filters can be plain links or `goto` with query params
-- [ ] **4. National dashboard charts**
-  - [ ] Actual vs forecast (24h back, 48h forward), fuel mix, and the forecast accuracy view, as plain SVG using `d3-scale` and `d3-shape`
+- [x] **4. National dashboard charts**
+  - [x] Actual vs forecast (last 24 hours), fuel mix, and the forecast accuracy summary, as plain SVG using `d3-scale` and `d3-shape`
+  - [x] "Now" card compared with the 30-day average: "▼ 12% below the 30-day average (180 gCO₂/kWh)". `compareToAverage` in `src/lib/metrics/compare.ts` (tested) rounds the gap to a whole percentage, and a gap that rounds to 0% reads "About the same as". The arrow repeats the words and is hidden from screen readers. When the latest actual is not in yet, the forecast is compared, as the card already says above it
+  - **No next-48h forecast chart (decided 2026-11-26).** It needs a new live `fw48h` call with its own cache, a sliding-window function and a highlighted band in `LineChart`, which is the largest piece of work left in the MVP for one chart. Moved to stretch, along with the cleanest and dirtiest window metric that depends on it
   - [x] Animation, as the last touch: one entrance theme for every chart, respecting `prefers-reduced-motion`
     - **The theme** ("Chart entrance" in `src/routes/layout.css`): things are revealed left to right (a `clip-path` wipe), axes fade in and markers pop. Each piece starts a little after the one before it, set with `--order` (one step is `--reveal-step`). Order in use: fuel mix bar 0, line chart axes 1, actual line 2, forecast line 3, marker 8 (after both lines have drawn). A new chart picks the next free number.
     - **Plain CSS keyframes, not Svelte `transition:`/`in:`**: it needs no JavaScript, so the server-rendered fuel mix bar animates on first paint, and reduced motion is handled in one place (the duration and step tokens become `0s`). A clip reveal also keeps the forecast line's dashes, where Svelte's `draw` would overwrite them. Svelte transitions are the right tool when elements enter and leave through `{#if}` or `{#each}`, which step 5 (the preview panel) will need.
     - **First-load blank is still there, but short:** the chart box is empty until the browser has hydrated and measured its width (the server cannot measure, and a guessed width made the chart jump to full width). The entrance now plays as soon as it is measured, so the wait is only the time to hydrate
-  - [ ] Concepts: `$derived` for scales and paths, transitions, `$effect` (sparingly)
-- [ ] **5. Regions table and preview** (closest match to the job)
-  - [ ] Sortable, filterable table with tier badges
+  - [x] Concepts: `$derived` for scales and paths, transitions, `$effect` (sparingly). Svelte transitions and `$effect` turned out not to be needed here (CSS keyframes animate the charts, see above, and nothing needs to sync with outside code), so they were explained rather than used
+- [x] **5. Regions table and preview** (closest match to the job)
+  - [x] Sortable, filterable table with tier badges
     - [x] Sortable columns: `sortRegions` in `src/lib/regions/sort.ts` (plain TypeScript, tested), with the sort key and direction as `$state` and the sorted list as `$derived` in `RegionsTable`. Each header is a real button with `aria-sort` on the sorted column, a `↕` / `▲` / `▼` icon, and a status line. The sort is local state, not in the URL. Ties always sort by name A to Z, in both directions
     - [x] Filterable: period and tier links (see below)
     - [x] Tier badge: `TierBadge` shows an icon (tick, dash, exclamation mark), the label and a colour, so the tier never relies on colour alone. The colours are the `--tier-*` tokens in `src/routes/layout.css`, contrast-checked in light and dark mode
-    - [ ] Index word with a 5-step meter: `/api/regions` returns no index yet, so this needs the index band worked out from the average first
-  - [ ] Filters synced to URL query params (date range, tier, fuel source)
+    - [x] Index word with a 5-step meter: `IndexBadge` (moved out of the "now" card, which uses it too) under each region's average, in the same cell. The API gives an index per period, not for an average, so `indexForIntensity` in `src/lib/metrics/intensity-index.ts` (tested) works out the band from the rounded average, using the API's regional bands (see Data quirks). A separate Index column made the table too wide for a phone, and the index is a reading of that same number
+    - [x] Region gap tile: `RegionGapTile` above the table shows the cleanest and dirtiest region and the difference between them. `regionGap` in `src/lib/regions/stats.ts` (tested), called by `/api/regions` on all 14 regions before the tier filter, since the gap is about the whole country and not the tier on screen
+  - [x] Filters synced to URL query params (date range, tier)
     - [x] Date range and tier: plain links (`FilterLinks`, wrapped by `RangeFilter` and `TierFilter`) that rewrite `?range=` and `?tier=` and keep the other params (`withParam` in `src/lib/url.ts`, tested, shared with the row selection). Links rather than `goto`, so they work without JavaScript and open in a new tab. SvelteKit 3 spells "stay put and keep focus" as `data-sveltekit-reset="false"`, not the old `noscroll` and `keepfocus`
-    - [ ] Fuel source: open. The endpoint returns no fuel data for the table, so this needs a column (renewable %) first, or should be dropped from the MVP
+    - **No fuel source filter (decided 2026-11-26).** The table has no fuel data to filter on, so it would need a renewable % column and a new query first. Dropped from the MVP, along with the renewable % column
   - [x] Preview panel with sparkline, fuel mix and forecast
     - [x] Row selection: each region name links to `?region=<id>` (built with `withParam`, so the other params stay), and the page reads it with `parseRegionId` in `src/lib/regions/selection.ts` (tested) into a `$derived` `selectedId`. The selected row has `aria-current`, a tint, a bar on its left edge and a bold name. The URL is the only place the selection lives, so sharing, refreshing and the back button all keep it
     - [x] Layout: a grid on the regions page, table about 60% and a sticky panel about 40% from 60rem wide, stacked below that
@@ -71,9 +74,10 @@ Each step lists the Svelte concepts it is meant to teach.
     - [x] Shared pieces: the latest, lowest and highest tiles moved out of `RegionPreview` into `ForecastTiles`, so the panel and the page share them. `LineChart` draws a forecast-only series when the periods have no `actual` field (the actual line, dot, key entry, readout and table column are left out), and takes a `subject` for its accessible name. Over more than a day its time axis labels dates ("8 Nov"), since every tick would otherwise read "00:00"
     - [x] Page contents: back link to the table (keeps the region selected and the range), range filter, tier and average, tiles, fuel mix now and the forecast chart. The chart sits in a `<svelte:boundary>`: an error while it renders shows a message with a "Try again" button (`reset`) instead of breaking the page. A boundary does not catch `load` errors, which happen before anything renders and go to `+error.svelte`
     - **No fuel mix over time on the detail page (decided 2026-11-26).** The Visualisations table planned a stacked area, but the endpoint returns only the latest mix, so it needs a new query and a new chart type. Moved to stretch, like the national fuel mix over time. No param matcher (`[id=region]`) either: SvelteKit 3 changed matchers to Standard Schema (`defineParams`), and the endpoint already returns a 404 for unknown ids
-  - [ ] Concepts: dynamic routes (`/regions/[id]`), `$app/state` and `goto`, shared state in a `.svelte.ts` module, `<svelte:boundary>`
+  - [x] Concepts: dynamic routes (`/regions/[id]`), `$app/state` and `goto`, shared state in a `.svelte.ts` module, `<svelte:boundary>`. `goto` and shared `.svelte.ts` state were not needed (links do the navigation, and the URL holds the shared state), so they were explained rather than used
 - [ ] **6. Accessibility, tests and feedback**
   - [ ] Keyboard navigation, focus states, `aria` labels, text/table alternative for each chart, tier not shown by colour alone
+  - [ ] Regions table at 320px wide (WCAG reflow): it fits at 375px but is about 30px too wide at 320px, held up by the "(gCO2/kWh)" heading and the tier badges
   - [ ] axe / Lighthouse audit, record scores
   - [ ] Vitest for tier logic and API client, one Playwright smoke test
   - [ ] Show 2-3 people the app, write up what they struggled with, make one visible change
@@ -226,10 +230,10 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
 | Metric                            | Source                                                                                                                                                                                      |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Renewable / low-carbon / fossil % | Latest fuel mix. The fuel classification (is biomass renewable? imports?) lives in one constants file                                                                                       |
-| Cleanest / dirtiest 48h window    | Live `fw48h` call, cached for a few minutes. Slide a window (e.g. 2h) over the 97 periods                                                                                                   |
+| (Stretch) Cleanest / dirtiest 48h window | Live `fw48h` call, cached for a few minutes. Slide a window (e.g. 2h) over the 97 periods                                                                                            |
 | Current vs 30-day average         | Stored `national_intensity`                                                                                                                                                                 |
 | Region tier                       | Average forecast per region over a chosen period, then `NTILE(3)` over regions 1-14 only. 14 regions split 4/5/5, ties broken by region name (see Performance tiers)                        |
-| Region gap                        | Latest forecast per region                                                                                                                                                                  |
+| Region gap                        | Average forecast per region over the chosen period (the same averages as the tiers), across all 14 regions whatever the tier filter                                                          |
 | Forecast accuracy                 | `forecast` and `actual` in `national_intensity`                                                                                                                                             |
 
 ### Ingest and refresh
@@ -243,7 +247,7 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
   - **Waiting:** a visitor waits at most 5 seconds. After that they get the stored data and the refresh carries on in the background, so the next visitor gets the new data. The API client's own timeout is 60 seconds per range request, so without this limit one hung request would hold up everyone.
   - **Failure:** a failed refresh is logged, and the stored data is used.
   - **What it returns:** a `StoredState` (`newestPeriod`, `isStale`). It describes the data after the attempt, not whether the attempt worked, because the page shows the same thing either way: a "data from ..." note when `isStale` is true.
-- **Being polite to the API:** it is free and keyless, and I found no published rate limit (not tested on purpose). Fetch sequentially, never `Promise.all` across many chunks. Cache live calls (the 48h forecast) for a few minutes and serve with `Cache-Control`, so most reads hit Postgres. Retry with backoff on 429 and 5xx, with a limited number of attempts.
+- **Being polite to the API:** it is free and keyless, and I found no published rate limit (not tested on purpose). Fetch sequentially, never `Promise.all` across many chunks. Cache any live call (such as the stretch 48h forecast) for a few minutes and serve with `Cache-Control`, so most reads hit Postgres. Retry with backoff on 429 and 5xx, with a limited number of attempts.
 
 ### Data quirks to handle
 
@@ -251,6 +255,7 @@ Estimates, not measured: 48 periods a day x 18 regions. 90 days is about 78k row
 - Range queries return one extra period at the start (ask for 00:00, get 23:30 first). Upsert on the primary key handles it
 - Fuel order in the JSON is not stable (`{"perc":0,"fuel":"coal"}` vs `{"fuel":"coal","perc":0}`). Parse by key, never by position
 - Regional forecasts can be 0 (North Scotland was 0 once), so tiers tie. Use a tiebreak, e.g. renewable share or name
+- The index bands change every year, as the grid gets cleaner. The regional readings stored over the 60 days to 2026-11-26 all fit very low 0-24, low 25-89, moderate 90-169, high 170-229 and very high 230 and up, with no overlap. `indexForIntensity` uses these bands for regional averages, so update it if the API moves to new ones. The national `index` does not follow them (its bands overlap), so it is not used for national values
 - All timestamps are UTC. Time-of-day profiles (stretch) probably want Europe/London time, so decide up front
 - The API keeps one `forecast` per period, so forecast accuracy cannot compare 24h-ahead vs 1h-ahead forecasts unless forecasts are snapshotted repeatedly (out of scope)
 - The regional range limit is documented as 14 days, and a range of exactly 14 days is rejected with a 400 ("greater than 14 days"), while 13 days 23 hours 30 minutes worked (checked against the live API). The response includes the period before the start, which is probably why. Chunk to 13 days. The national range worked at 14 days, and its documented limit is 31
@@ -274,7 +279,6 @@ Raw API values are only the starting point. The more interesting analytics are d
 **MVP**
 
 - **Renewable % vs low-carbon % vs fossil %**: wind + solar + hydro (+ biomass) vs adding nuclear vs gas + coal. Derived from the generation mix.
-- **Cleanest / dirtiest window in the next 48h**: "best time to use electricity". Plain-language and useful for editorial users.
 - **Current vs 30-day average**: how much cleaner or dirtier than normal right now (from stored readings).
 - **Region tier and rank** (Top/Middle/Bottom): see below.
 - **Gap between cleanest and dirtiest region**: shows how much location matters.
@@ -282,6 +286,7 @@ Raw API values are only the starting point. The more interesting analytics are d
 
 **Stretch (needs stored history, computed in SQL from the `readings` and `national_intensity` tables; not implemented unless the MVP is finished early)**
 
+- **Cleanest / dirtiest window in the next 48h**: "best time to use electricity". Plain-language and useful for editorial users. Needs a live forecast call rather than stored history (dropped from the MVP on 2026-11-26, see step 4).
 - **Time-of-day profile**: average intensity by hour, split weekday/weekend.
 - **Volatility**: spread (standard deviation) of intensity per day or region.
 - **Index distribution**: share of time spent in each band (very low to very high).
@@ -298,7 +303,7 @@ There are 3 areas of data: intensity, statistics (time comparison) and generatio
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | "Now" card                            | Current intensity, index badge, vs 30-day average                                                                       | Big number, labelled badge, small delta          |
 | Fuel mix now                          | Renewable / low-carbon / fossil %                                                                                       | Stacked bar or donut with labels                 |
-| Next 48h                              | Forecast intensity, cleanest and dirtiest window highlighted                                                            | Line chart with highlighted band                 |
+| (Stretch) Next 48h                    | Forecast intensity, cleanest and dirtiest window highlighted                                                            | Line chart with highlighted band (cut from MVP)  |
 | Last 24h                              | Actual vs forecast intensity, with forecast accuracy summary (mean error, bias, share within +/-10%) in the card header | Two-line chart (solid actual, dashed forecast)   |
 | (Stretch) Fuel mix over time          | National fuel shares over the last day or week                                                                          | Stacked area chart (cut from MVP, time is short) |
 | (Stretch) Forecast accuracy over time | Forecast vs actual error over time                                                                                      | Line of error                                    |
@@ -307,11 +312,11 @@ There are 3 areas of data: intensity, statistics (time comparison) and generatio
 
 | Visual                                      | Metric                                       | Chart type                                                                               |
 | ------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Regions table                               | Forecast intensity, index, tier, renewable % | Sortable, filterable table with tier badges                                              |
+| Regions table                               | Average forecast intensity, index, tier      | Sortable, filterable table with tier badges and index meters                             |
 | Preview panel (side panel beside the table) | One region's forecast and fuel mix           | Sparkline over the selected period plus small stacked bar, with a "Full detail for London" link to `/regions/[id]` |
 | Region detail                               | Forecast intensity over the selected period, fuel mix now | Line chart (forecast only, regions have no actual) plus small stacked bar |
 | (Stretch) Region fuel mix over time         | One region's fuel shares over the selected period | Stacked area chart (cut from MVP, needs a new query) |
-| Region gap                                  | Cleanest vs dirtiest region                  | Summary tile                                                                             |
+| Region gap                                  | Cleanest vs dirtiest region over the period  | Summary tile                                                                             |
 | (Stretch) Map                               | Forecast intensity by region                 | Choropleth                                                                               |
 
 Statistics over time (averages, ranges) are drawn from the data stored in Postgres, not just the API's `/stats` endpoint.

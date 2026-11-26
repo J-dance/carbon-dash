@@ -1,12 +1,12 @@
 # CLAUDE.md
 
-Guidance for Claude when working in this repository. The [README](README.md) is the source of truth for scope, plan, data design, metrics and UI decisions. Read it before starting a task, and do not duplicate it here.
+Guidance for Claude when working in this repository. The [README](README.md) is a short, reader-facing overview (features, setup, deploy). [docs/notes.md](docs/notes.md) is the source of truth for data design, API quirks, metrics, UI decisions and the reasoning behind them. Read both before starting a task, and do not duplicate them here.
 
 ## Project
 
 Carbon Dash is an analytics dashboard for the UK Carbon Intensity API (`https://api.carbonintensity.org.uk`, no key needed), built with SvelteKit (Svelte 5) and Postgres.
 
-This is also a **learning project**. Each step in the README plan lists the Svelte concepts it is meant to teach, and the README write-up covers how AI tools were used. So the goal is for the owner to understand and be able to explain the code, not just to have it working.
+This is also a **learning project**, so the goal is for the owner to understand and be able to explain the code, not just to have it working. The README's "How I used AI tools" section describes how Claude was used.
 
 ## How we work together
 
@@ -21,13 +21,13 @@ This is also a **learning project**. Each step in the README plan lists the Svel
 ### Ask questions to make tasks clear
 
 - If a request is ambiguous, ask before starting. Prefer a few focused questions over guessing.
-- Check the README first. If it already answers the question (data shapes, UI decisions, scope), use that instead of asking.
+- Check the README and docs/notes.md first. If they already answer the question (data shapes, UI decisions, scope), use that instead of asking.
 - When there are real alternatives, give a short recommendation with the trade-off, not a long survey.
 - Flag anything that would pull in stretch work (map, extra metrics, cron ingest) before doing it. MVP first.
 
 ### Teach as we go
 
-- Explain the Svelte concept a change uses (for example `$derived` vs `$effect`, `load` functions, snippets) in a sentence or two, and link the matching README plan step.
+- Explain the Svelte concept a change uses (for example `$derived` vs `$effect`, `load` functions, snippets) in a sentence or two.
 - Prefer the simplest idiomatic Svelte 5 approach. Use runes (`$state`, `$derived`, `$props`), not legacy `export let` or stores, unless there is a reason.
 - Use `$effect` sparingly, and say why when it is the right tool.
 - Where the owner is meant to learn by writing something, offer a hint or outline instead of the full solution, and ask which they would prefer.
@@ -35,7 +35,7 @@ This is also a **learning project**. Each step in the README plan lists the Svel
 ## Tech stack and commands
 
 - SvelteKit 3, Svelte 5, Vite 8, TypeScript (strict), pnpm
-- Postgres with Drizzle, `d3-scale` and `d3-shape` for plain SVG charts, Vitest. No Playwright (dropped from the MVP, see README step 6)
+- Postgres with Drizzle, `d3-scale` and `d3-shape` for plain SVG charts, Vitest. No Playwright (dropped from the MVP)
 - Check the current `package.json` for what is actually installed. Do not assume planned tools are present.
 
 ```bash
@@ -82,14 +82,14 @@ Accessibility is a core requirement, not a polish step. Build it in from the sta
 - Label every form control. Use real `<label>`s and associate error messages with their inputs.
 - Respect `prefers-reduced-motion` for transitions and animation, and support zoom to 200% and a mobile layout without horizontal scrolling.
 - Svelte's compiler reports a11y warnings. Treat them as errors and fix them rather than ignoring them.
-- Verify with an axe or Lighthouse audit (README step 6), and record the results.
+- Verify with an axe or Lighthouse audit, and record the results in docs/notes.md.
 
 ## UI and design
 
 The UI should be **simple, modern and visual**: calm and uncluttered, with the data as the focus.
 
 - Clear hierarchy: one main idea per section, generous whitespace, a restrained palette and consistent spacing.
-- Use charts, big numbers, badges and small deltas so the data reads at a glance. Follow the visual choices in the README's Visualisations and UI decisions sections (single y-axis from 0, text readout instead of floating tooltips, master-detail regions layout).
+- Use charts, big numbers, badges and small deltas so the data reads at a glance. Follow the visual choices in the Visualisations and UI decisions sections of docs/notes.md (single y-axis from 0, text readout instead of floating tooltips, master-detail regions layout).
 - Define design tokens once (CSS custom properties for colour, spacing, radius, type scale) and use them everywhere, rather than hard-coding values in components.
 - Support light and dark mode through `prefers-color-scheme`, and keep contrast valid in both.
 - Responsive by default, designing mobile first. Use fluid layouts (CSS grid and flexbox) over fixed widths.
@@ -99,8 +99,8 @@ The UI should be **simple, modern and visual**: calm and uncluttered, with the d
 
 ## Data and API
 
-- The Carbon Intensity API's rules and quirks (30-minute periods, `actual` null for the future, 31-day stats limit, region IDs 15-18 being aggregates) are documented in the README Data section. Follow them.
-- Data flows through our own SvelteKit API and Postgres, with lazy refresh and a single-flight guard (README step 3), rather than having components call the external API directly.
+- The Carbon Intensity API's rules and quirks (30-minute periods, `actual` null for the future, 31-day stats limit, region IDs 15-18 being aggregates) are documented in the Data section of docs/notes.md. Follow them.
+- Data flows through our own SvelteKit API and Postgres, with lazy refresh and a single-flight guard (see docs/notes.md), rather than having components call the external API directly.
 - Never hard-code secrets. Use `$env` modules, and keep a documented `.env.example` once environment variables exist.
 
 ## Testing
@@ -112,11 +112,10 @@ The UI should be **simple, modern and visual**: calm and uncluttered, with the d
 
 Good documentation is part of the work, not an afterthought.
 
-- Keep the README plan up to date: tick off steps as they are done, and record decisions (and the reasoning behind them) where the README already keeps them.
+- Keep the README short and written for readers (what the app is, setup, deploy). Record decisions and the reasoning behind them in docs/notes.md.
 - Write comments that explain **why**, not what. Add a short doc comment to exported functions, types and components whose purpose is not obvious from their name.
 - Document non-obvious data handling right where it happens (for example the fuel-name mapping, and the tier calculation with `NTILE(3)`).
 - Keep a `.env.example`, and setup instructions (install, database, backfill, run) in the README as they come into existence.
-- Save screenshots, audit scores and the "what I learned" and "how I used AI tools" notes where the README plan expects them.
 
 ## Git
 

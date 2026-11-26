@@ -2,7 +2,7 @@
 
 An analytics dashboard for the [UK Carbon Intensity API](https://carbon-intensity.github.io/api-definitions/), built with SvelteKit and Postgres.
 
-**Live demo:** https://carbon-dash-jpo6.onrender.com. It runs on a free tier, so the first load after a quiet spell can take about a minute while the server wakes.
+**Live demo:** https://carbon-dash-jpo6.onrender.com. It runs on a free tier and is kept awake from 06:00 to 23:00 UK time. Outside those hours the first load can take about a minute while the server wakes.
 
 ## Features
 
@@ -59,6 +59,8 @@ pnpm db:backfill
 - Build command: `corepack pnpm install --frozen-lockfile && corepack pnpm build`
 - Start command: `node build`
 - Environment variables: `DATABASE_URL` (the Neon connection string), `ORIGIN` (the service's public URL, such as `https://carbon-dash-jpo6.onrender.com`), `NODE_VERSION=26` and `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`
+
+**3. Keep-alive (optional).** Render's free tier sleeps after 15 minutes without traffic. To avoid the cold start during the day, have an external monitor such as cron-job.org request `/health` every 10 minutes (schedule `*/10 6-22 * * *`, timezone Europe/London). That route does not touch the database or refresh the data. See [docs/notes.md](docs/notes.md) for why.
 
 Every push to `main` redeploys. To try the production build locally first, run `pnpm build`, then `PORT=4180 ORIGIN=http://localhost:4180 node --env-file=.env build`.
 

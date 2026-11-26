@@ -55,7 +55,12 @@ pnpm db:backfill
 - **Server:** a Render free web service. It sleeps after 15 minutes without traffic, and Render warns that this can delay the next request by 50 seconds or more. An always-on option at about $5-7 a month (Railway Hobby, Render Starter or a small VPS) avoids that.
 - **Database:** Neon free. Its compute sleeps when idle and wakes in a fraction of a second, and the data is kept. Avoid Supabase free: it is reported to pause a project after a week of inactivity, and a paused project has to be restarted by hand.
 
-**The cold start is accepted, and said next to the demo link.** If it matters (for example while applying for jobs), switch to Render's paid plan for that period: no code changes. A keep-alive pinger was rejected: pinging `/` every few minutes would trigger lazy refresh every hour, which brings back the scheduled API calls this design avoids, and it would keep Neon's compute awake too.
+**Keep-alive from 06:00 to 23:00 (2026-11-26).** The cold start of about a minute was too slow for a demo, so an external monitor (cron-job.org) pings `GET /health` every 10 minutes during the day. Outside those hours the server sleeps and the cold start is said next to the demo link.
+
+- **Why `/health`, not `/`:** a keep-alive pinger was first rejected because pinging `/` would trigger lazy refresh every hour, bringing back the scheduled API calls this design avoids and keeping Neon's compute awake. `/health` (`src/routes/health/+server.ts`) imports nothing from `#lib/server`: it returns `ok` without touching the database or the refresh, so pings never call the Carbon Intensity API and Neon still sleeps. Data is still only refreshed when someone visits.
+- **Why every 10 minutes:** Render sleeps after 15 minutes without requests. Every 15 minutes would leave no margin for a late ping, and every 30 minutes would let the server sleep half the time.
+- **Why only 06:00 to 23:00:** Render's free plan is reported to give 750 instance hours a month, and running around the clock uses about 744, which leaves nothing for any other free service. 17 hours a day is about 530 a month. Nobody is likely to visit overnight.
+- **Alternative:** Render's paid plan (about $7 a month) never sleeps and needs no pinger. Worth it for a period when the demo matters all day.
 
 **If I deployed on serverless.** `readStoredState`, `isStale` and `ingestRange` stay as they are. These change:
 
@@ -92,6 +97,13 @@ pnpm db:backfill
   - `COREPACK_ENABLE_DOWNLOAD_PROMPT`: `0`, so Corepack never stops to ask before downloading pnpm
 - `PORT` is set by Render and read by adapter-node.
 - Every push to `main` redeploys. To try the production build locally first: `pnpm build`, then `PORT=4180 ORIGIN=http://localhost:4180 node --env-file=.env build` (against the local database).
+
+**Keep-alive (cron-job.org).** One cron job, set up in cron-job.org's dashboard (not in the repository):
+
+- URL: `https://carbon-dash-jpo6.onrender.com/health`
+- Schedule: custom, `*/10 6-22 * * *` (every 10 minutes, last ping at 22:50)
+- Timezone: Europe/London, so the hours follow the clock change
+- The 06:00 ping wakes a sleeping server and may take longer than cron-job.org's timeout. It can show as failed and still do its job, so failure alerts for it can be ignored.
 
 ## Data
 

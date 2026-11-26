@@ -105,6 +105,7 @@
  *   1  line chart axes
  *   2  actual line, 3  forecast line (each runs for 5 steps)
  *   8  line chart marker, once both lines have finished drawing
+ *   Sparkline (region preview): line 2, dot 7 (once the line has finished drawing)
  *
  * Plain CSS animation, not a Svelte transition: it needs no JavaScript, so the server-rendered
  * fuel mix bar animates on first paint too. `backwards` keeps an element hidden while it waits for

@@ -1,16 +1,26 @@
 <script lang="ts">
-	import { INDEXES } from "#lib/api/types.ts";
 	import Card from "#lib/components/Card.svelte";
+	import IndexBadge from "#lib/components/IndexBadge.svelte";
+	import { compareToAverage } from "#lib/metrics/compare.ts";
 	import type { NationalNow } from "#lib/national/types.ts";
 
-	let { intensity }: { intensity: NationalNow } = $props();
+	let {
+		intensity,
+		average30d
+	}: {
+		intensity: NationalNow;
+		/** Average actual intensity over the last 30 days. Null when there is none yet. */
+		average30d: number | null;
+	} = $props();
 
 	// `actual` is null until the period has ended, so fall back to the forecast and say so.
 	const isForecast = $derived(intensity.actual === null);
 	const value = $derived(intensity.actual ?? intensity.forecast);
 
-	// 1 (very low) to 5 (very high): how many steps of the meter are filled.
-	const indexLevel = $derived(INDEXES.indexOf(intensity.index) + 1);
+	const comparison = $derived(compareToAverage(value, average30d));
+
+	// The arrow repeats the words, so it is hidden from screen readers.
+	const ARROWS = { below: "▼", above: "▲", same: "=" } as const;
 </script>
 
 <Card>
@@ -22,15 +32,19 @@
 		<p class="note">Forecast: the actual value is not available yet</p>
 	{/if}
 
-	<!-- The word carries the meaning. The meter repeats it visually and is hidden from screen readers. -->
-	<p class="badge">
-		<span class="index">{intensity.index}</span>
-		<span class="meter" aria-hidden="true">
-			{#each INDEXES as _, i}
-				<i class:filled={i < indexLevel}></i>
-			{/each}
-		</span>
-	</p>
+	<p class="index-row"><IndexBadge index={intensity.index} /></p>
+
+	{#if comparison !== null && average30d !== null}
+		<p class="delta">
+			<span aria-hidden="true">{ARROWS[comparison.direction]}</span>
+			{#if comparison.direction === "same"}
+				About the same as
+			{:else}
+				{comparison.percent}% {comparison.direction}
+			{/if}
+			the 30-day average ({Math.round(average30d)} gCO₂/kWh)
+		</p>
+	{/if}
 </Card>
 
 <style>
@@ -61,39 +75,12 @@
 		font-size: var(--text-sm);
 	}
 
-	.badge {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
+	.index-row {
 		margin-top: var(--space-3);
-		padding: 0 var(--space-3);
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--radius-md);
+	}
+
+	.delta {
+		margin-top: var(--space-2);
 		font-size: var(--text-sm);
-		font-weight: 600;
-	}
-
-	/* inline-block so ::first-letter applies: "very low" shows as "Very low". */
-	.index {
-		display: inline-block;
-	}
-
-	.index::first-letter {
-		text-transform: uppercase;
-	}
-
-	.meter {
-		display: inline-flex;
-		gap: 2px;
-	}
-
-	.meter i {
-		width: 7px;
-		height: var(--space-3);
-		border: var(--border-width) solid var(--text);
-	}
-
-	.meter i.filled {
-		background: var(--text);
 	}
 </style>

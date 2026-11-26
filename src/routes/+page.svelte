@@ -54,7 +54,7 @@
 	{/if}
 
 	<div class="cards">
-		<IntensityNowCard intensity={data.latest.now} />
+		<IntensityNowCard intensity={data.latest.now} average30d={data.latest.average30d} />
 		<FuelMixCard mix={data.latest.mix} />
 	</div>
 

@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { page } from "$app/state";
 	import type { PageProps } from "./$types";
+	import { parseRegionId } from "#lib/regions/selection.ts";
 	import RangeFilter from "#lib/components/RangeFilter.svelte";
 	import RegionsTable from "#lib/components/RegionsTable.svelte";
 	import TierFilter from "#lib/components/TierFilter.svelte";
@@ -18,6 +20,10 @@
 	const newestPeriodLabel = $derived(
 		data.newestPeriod === null ? null : dateTime.format(new Date(data.newestPeriod))
 	);
+
+	// The selected region lives in the URL (?region=13), not in component state, so a shared link,
+	// a refresh and the back button all keep it. $derived re-reads it whenever the URL changes.
+	const selectedId = $derived(parseRegionId(page.url.searchParams.get("region")));
 </script>
 
 <svelte:head>
@@ -44,7 +50,7 @@
 	{#if data.regions.length === 0}
 		<p>No regions match these filters. Choose a different period or tier.</p>
 	{:else}
-		<RegionsTable regions={data.regions} range={data.range} />
+		<RegionsTable regions={data.regions} range={data.range} {selectedId} />
 	{/if}
 {/if}
 

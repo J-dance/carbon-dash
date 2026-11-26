@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { page } from "$app/state";
 	import type { Range, RegionTier } from "#lib/regions/types.ts";
+	import { withParam } from "#lib/url.ts";
 	import TierBadge from "./TierBadge.svelte";
 	import {
 		sortRegions,
@@ -7,7 +9,16 @@
 		type SortKey,
 	} from "#lib/regions/sort.ts";
 
-	let { regions, range }: { regions: RegionTier[]; range: Range } = $props();
+	let {
+		regions,
+		range,
+		selectedId,
+	}: {
+		regions: RegionTier[];
+		range: Range;
+		/** The region chosen with ?region=, or null when none is. */
+		selectedId: number | null;
+	} = $props();
 
 	const RANGE_LABELS: Record<Range, string> = {
 		"24h": "the last 24 hours",
@@ -86,8 +97,19 @@
 	<tbody>
 		<!-- The key lets Svelte match each row to its region when the data changes. -->
 		{#each sorted as region (region.regionId)}
-			<tr>
-				<th scope="row">{region.shortName}</th>
+			{@const selected = region.regionId === selectedId}
+			<tr class:selected>
+				<th scope="row">
+					<!-- A link, not a button: choosing a region changes the URL, and a link works before
+					     JavaScript loads. reset="false" keeps scroll position and keyboard focus. -->
+					<a
+						href={withParam(page.url.search, "region", String(region.regionId))}
+						aria-current={selected ? "true" : undefined}
+						data-sveltekit-reset="false"
+					>
+						{region.shortName}
+					</a>
+				</th>
 				<td class="number">{Math.round(region.avgForecast)}</td>
 				<td><TierBadge tier={region.tier} /></td>
 			</tr>
@@ -138,6 +160,22 @@
 		color: var(--accent);
 		text-decoration: underline;
 		text-underline-offset: 0.25em;
+	}
+
+	/* The selected row is tinted and has a bar on its left edge, and its link is bold. The bar and
+	   the bold text mean the selection does not rely on the tint's colour alone. An inset shadow
+	   draws the bar without changing the cell's width. */
+	tr.selected {
+		background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+	}
+
+	tr.selected th {
+		box-shadow: inset var(--space-1) 0 var(--accent);
+	}
+
+	a[aria-current="true"] {
+		color: var(--text);
+		font-weight: 700;
 	}
 
 	/* The icon that says "this can be sorted" is quieter than the arrow on the active column. */

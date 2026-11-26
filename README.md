@@ -53,11 +53,13 @@ Each step lists the Svelte concepts it is meant to teach.
   - [ ] Sortable, filterable table with tier badges
     - [x] Sortable columns: `sortRegions` in `src/lib/regions/sort.ts` (plain TypeScript, tested), with the sort key and direction as `$state` and the sorted list as `$derived` in `RegionsTable`. Each header is a real button with `aria-sort` on the sorted column, a `↕` / `▲` / `▼` icon, and a status line. The sort is local state, not in the URL. Ties always sort by name A to Z, in both directions
     - [x] Filterable: period and tier links (see below)
-    - [ ] Tier badge (icon, label and colour) and the index word with a 5-step meter
+    - [x] Tier badge: `TierBadge` shows an icon (tick, dash, exclamation mark), the label and a colour, so the tier never relies on colour alone. The colours are the `--tier-*` tokens in `src/routes/layout.css`, contrast-checked in light and dark mode
+    - [ ] Index word with a 5-step meter: `/api/regions` returns no index yet, so this needs the index band worked out from the average first
   - [ ] Filters synced to URL query params (date range, tier, fuel source)
     - [x] Date range and tier: plain links (`FilterLinks`, wrapped by `RangeFilter` and `TierFilter`) that rewrite `?range=` and `?tier=` and keep the other params (`withParam` in `src/lib/url.ts`, tested, shared with the row selection). Links rather than `goto`, so they work without JavaScript and open in a new tab. SvelteKit 3 spells "stay put and keep focus" as `data-sveltekit-reset="false"`, not the old `noscroll` and `keepfocus`
     - [ ] Fuel source: open. The endpoint returns no fuel data for the table, so this needs a column (renewable %) first, or should be dropped from the MVP
   - [ ] Preview panel with sparkline, fuel mix and forecast
+    - [x] Row selection: each region name links to `?region=<id>` (built with `withParam`, so the other params stay), and the page reads it with `parseRegionId` in `src/lib/regions/selection.ts` (tested) into a `$derived` `selectedId`. The selected row has `aria-current`, a tint, a bar on its left edge and a bold name. The URL is the only place the selection lives, so sharing, refreshing and the back button all keep it
   - [ ] Concepts: dynamic routes (`/regions/[id]`), `$app/state` and `goto`, shared state in a `.svelte.ts` module, `<svelte:boundary>`
 - [ ] **6. Accessibility, tests and feedback**
   - [ ] Keyboard navigation, focus states, `aria` labels, text/table alternative for each chart, tier not shown by colour alone
@@ -305,7 +307,7 @@ Statistics over time (averages, ranges) are drawn from the data stored in Postgr
 ### UI decisions
 
 - **Regions layout:** master-detail. On desktop the table is on the left (about 60%) and a sticky preview panel is on the right, so clicking down the table updates the preview without scrolling. On narrow screens the panel stacks below the table. No drawer or modal (avoids focus-trap work), and no hover-only previews (not accessible on touch or keyboard).
-- **Selection** is a real button in each row (keyboard reachable) and is synced to the URL (`?region=13`) so it can be shared. The preview panel is an `aria-live` region.
+- **Selection** is a link on each row's region name (keyboard reachable) to `?region=13`, so it can be shared. **A link, not a button (decided 2026-11-26):** choosing a region changes the URL, which is navigation, and a link works before JavaScript loads, like the filter links. `aria-current="true"` marks the selected row. The preview panel is an `aria-live` region.
 - **Tier period** defaults to the last 24 hours, with a period control (24h / 7 days / 30 days) in a filter row above the table, synced to the URL.
 - **Index** is shown as a word plus a 5-step meter, not by colour. **Tiers** use an icon, a label and a colour (never colour alone). Fuel mix is shown as four groups (renewable, nuclear, gas, imports), not nine fuels.
 - **Charts** use a single y-axis starting at 0. Hovering a chart shows a text readout above it (time, value, index band) rather than a floating tooltip. **Keyboard access to the readout (decided 2026-11-24):** a real `<input type="range">` under the chart, one step per period, labelled "Select a time to read its values". The browser gives arrow-key, Home and End support, and screen readers announce the readout through `aria-valuetext`. Pointer and touch on the chart move the same selection, and the newest period shows until one is chosen. This was chosen over arrow-key handling on the chart itself because it needs no custom key code or ARIA.

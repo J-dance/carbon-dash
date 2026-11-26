@@ -3,18 +3,31 @@
 	import { line } from "d3-shape";
 	import type { Index } from "#lib/api/types.ts";
 
-	/** One 30-minute period. The same shape as a period from `/api/national/history`. */
+	/**
+	 * One 30-minute period: a period from `/api/national/history`, or from `/api/regions/[id]`,
+	 * which has no `actual`.
+	 */
 	interface ChartPeriod {
 		/** The start of the period, as an ISO string. */
 		period: string;
 		forecast: number;
-		/** Null until the period has ended. */
-		actual: number | null;
+		/**
+		 * Null until the period has ended. Left out for a series that never has one (regions), and
+		 * then the chart draws the forecast only.
+		 */
+		actual?: number | null;
 		/** The band the forecast falls in. */
 		index: Index;
 	}
 
-	let { periods }: { periods: ChartPeriod[] } = $props();
+	let {
+		periods,
+		subject
+	}: {
+		periods: ChartPeriod[];
+		/** What the line shows, for the chart's accessible name: "national carbon intensity". */
+		subject: string;
+	} = $props();
 
 	const HEIGHT = 280;
 	// Room outside the plot for the axis labels, in SVG units.
@@ -25,10 +38,16 @@
 	const NARROW_WIDTH = 400;
 	const X_TICK_COUNT_NARROW = 3;
 	const X_TICK_COUNT_WIDE = 6;
+	const DAY_MS = 24 * 60 * 60 * 1000;
 
 	// Fixed locale and time zone, so the server and the browser print the same text.
 	const timeFormat = new Intl.DateTimeFormat("en-GB", {
 		timeStyle: "short",
+		timeZone: "UTC"
+	});
+	const dayFormat = new Intl.DateTimeFormat("en-GB", {
+		day: "numeric",
+		month: "short",
 		timeZone: "UTC"
 	});
 	const dateTimeFormat = new Intl.DateTimeFormat("en-GB", {
@@ -45,8 +64,14 @@
 	const innerWidth = $derived(width - MARGIN.left - MARGIN.right);
 	const innerHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
 
+	// A missing `actual` (a field the series does not have) is not the same as a null one (a period
+	// that has not ended), so this is checked before the points below turn both into null.
+	const showsActual = $derived(periods.some((p) => p.actual !== undefined));
+
 	// $derived: parse each timestamp once, instead of in every scale and line call.
-	const points = $derived(periods.map((p) => ({ ...p, time: new Date(p.period) })));
+	const points = $derived(
+		periods.map((p) => ({ ...p, actual: p.actual ?? null, time: new Date(p.period) }))
+	);
 
 	// The period the readout describes. null means "the user has not chosen", which shows the
 	// newest period. The slider and pointer set it, and the readout, marker and slider all read it.
@@ -66,11 +91,11 @@
 			index: selected.index
 		};
 	});
-	const readoutText = $derived(
-		readout === null
-			? ""
-			: `${readout.time}. Actual ${readout.actual}. Forecast ${readout.forecast} gCO2/kWh. Forecast index ${readout.index}.`
-	);
+	const readoutText = $derived.by(() => {
+		if (readout === null) return "";
+		const actual = showsActual ? ` Actual ${readout.actual}.` : "";
+		return `${readout.time}.${actual} Forecast ${readout.forecast} gCO2/kWh. Forecast index ${readout.index}.`;
+	});
 
 	// $derived.by: one block builds everything that depends on the data and the width, so the
 	// scales, ticks and paths always change together. d3 only does the maths here. Svelte draws
@@ -85,7 +110,8 @@
 		const x = scaleUtc().domain([start, end]).range([0, innerWidth]);
 
 		// The y-axis starts at 0 (README, UI decisions). nice() rounds the top up to a tick.
-		const highest = Math.max(...points.map((p) => Math.max(p.forecast, p.actual ?? 0)));
+		// At least 1, like Sparkline: a region at 0 the whole time would give a domain of [0, 0].
+		const highest = Math.max(1, ...points.map((p) => Math.max(p.forecast, p.actual ?? 0)));
 		const y = scaleLinear().domain([0, highest]).nice().range([innerHeight, 0]);
 
 		const forecastLine = line<(typeof points)[number]>()
@@ -100,15 +126,22 @@
 			.y((p) => y(p.actual ?? 0));
 
 		const xTickCount = innerWidth < NARROW_WIDTH ? X_TICK_COUNT_NARROW : X_TICK_COUNT_WIDE;
+		// Over more than a day the ticks land on midnights, so a time label would read "00:00" on
+		// every one. The date says which day it is instead.
+		const tickFormat = end.getTime() - start.getTime() > DAY_MS ? dayFormat : timeFormat;
 
 		return {
 			x,
 			y,
-			xTicks: x.ticks(xTickCount).map((value) => ({ value, position: x(value) })),
+			xTicks: x.ticks(xTickCount).map((value) => ({
+				value,
+				position: x(value),
+				label: tickFormat.format(value)
+			})),
 			yTicks: y.ticks(Y_TICK_COUNT).map((value) => ({ value, position: y(value) })),
 			forecastPath: forecastLine(points),
 			actualPath: actualLine(points),
-			description: `Line chart of the national carbon intensity in gCO2/kWh, actual and forecast, from ${dateTimeFormat.format(start)} to ${dateTimeFormat.format(end)} UTC. The same data is in the table below the chart.`
+			description: `Line chart of the ${subject} in gCO2/kWh, ${showsActual ? "actual and forecast" : "forecast"}, from ${dateTimeFormat.format(start)} to ${dateTimeFormat.format(end)} UTC. The same data is in the table below the chart.`
 		};
 	});
 
@@ -137,7 +170,9 @@
 			the slider, a tap or hover on the chart, and shows the newest period until one is chosen. -->
 		<p class="readout">
 			<strong>{readout.time}</strong>
-			<span>Actual: {readout.actual}</span>
+			{#if showsActual}
+				<span>Actual: {readout.actual}</span>
+			{/if}
 			<span>Forecast: {readout.forecast}</span>
 			<span class="unit">gCO₂/kWh</span>
 			<span>Forecast index: {readout.index}</span>
@@ -180,7 +215,7 @@
 									y={innerHeight + MARGIN.bottom - TICK_GAP}
 									text-anchor="middle"
 								>
-									{timeFormat.format(tick.value)}
+									{tick.label}
 								</text>
 							{/each}
 
@@ -195,7 +230,9 @@
 						</g>
 
 						<path class="series forecast reveal" style:--order="3" d={chart.forecastPath} />
-						<path class="series actual reveal" style:--order="2" d={chart.actualPath} />
+						{#if showsActual}
+							<path class="series actual reveal" style:--order="2" d={chart.actualPath} />
+						{/if}
 
 						<!-- The selected period: a line, plus a hollow dot (forecast) and a solid dot (actual),
 							so the two are told apart by shape and not only by colour. Order 8 is after both
@@ -216,15 +253,18 @@
 							cy={chart.y(selected.forecast)}
 							r="4"
 						/>
-						<!-- Hidden, not removed, while the selected period has no actual yet. -->
-						<circle
-							class="dot actual pop"
-							style:--order="8"
-							visibility={selected.actual === null ? "hidden" : "visible"}
-							cx={chart.x(selected.time)}
-							cy={chart.y(selected.actual ?? 0)}
-							r="4"
-						/>
+						<!-- Hidden, not removed, while the selected period has no actual yet. A series with no
+							actuals at all never has the dot, which does not change while the chart is shown. -->
+						{#if showsActual}
+							<circle
+								class="dot actual pop"
+								style:--order="8"
+								visibility={selected.actual === null ? "hidden" : "visible"}
+								cx={chart.x(selected.time)}
+								cy={chart.y(selected.actual ?? 0)}
+								r="4"
+							/>
+						{/if}
 					</g>
 				</svg>
 			{/if}
@@ -247,12 +287,14 @@
 
 		<!-- The key says which line is which in words and by line style, not by colour alone. -->
 		<ul class="key">
-			<li>
-				<svg width="24" height="8" aria-hidden="true">
-					<line class="series actual" x1="0" x2="24" y1="4" y2="4" />
-				</svg>
-				Actual (solid)
-			</li>
+			{#if showsActual}
+				<li>
+					<svg width="24" height="8" aria-hidden="true">
+						<line class="series actual" x1="0" x2="24" y1="4" y2="4" />
+					</svg>
+					Actual (solid)
+				</li>
+			{/if}
 			<li>
 				<svg width="24" height="8" aria-hidden="true">
 					<line class="series forecast" x1="0" x2="24" y1="4" y2="4" />
@@ -269,7 +311,9 @@
 					<tr>
 						<th scope="col">Period start</th>
 						<th scope="col">Forecast</th>
-						<th scope="col">Actual</th>
+						{#if showsActual}
+							<th scope="col">Actual</th>
+						{/if}
 					</tr>
 				</thead>
 				<tbody>
@@ -277,7 +321,9 @@
 						<tr>
 							<th scope="row">{dateTimeFormat.format(point.time)}</th>
 							<td>{point.forecast}</td>
-							<td>{point.actual ?? "Not available yet"}</td>
+							{#if showsActual}
+								<td>{point.actual ?? "Not available yet"}</td>
+							{/if}
 						</tr>
 					{/each}
 				</tbody>

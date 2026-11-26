@@ -62,7 +62,7 @@
 		<Card>
 			<h2>Last 24 hours: actual vs forecast</h2>
 			<AccuracySummary accuracy={data.history.accuracy} />
-			<LineChart periods={data.history.periods} />
+			<LineChart periods={data.history.periods} subject="national carbon intensity" />
 		</Card>
 	</section>
 {:else}

@@ -3,8 +3,10 @@
 	import type { PageProps } from "./$types";
 	import Card from "#lib/components/Card.svelte";
 	import ForecastTiles from "#lib/components/ForecastTiles.svelte";
+	import InfoButton from "#lib/components/InfoButton.svelte";
 	import FuelMixBar from "#lib/components/FuelMixBar.svelte";
 	import LineChart from "#lib/components/LineChart.svelte";
+	import PageHeader from "#lib/components/PageHeader.svelte";
 	import RangeFilter from "#lib/components/RangeFilter.svelte";
 	import TierBadge from "#lib/components/TierBadge.svelte";
 	import { forecastExtremes } from "#lib/regions/stats.ts";
@@ -36,7 +38,11 @@
 
 <p class="back"><a href={backHref}><span aria-hidden="true">←</span> Back to the regions table</a></p>
 
-<h1>{title}</h1>
+{#snippet regionKicker()}
+	Regional forecast
+{/snippet}
+
+<PageHeader {title} kicker={regionKicker} />
 
 {#if ranked === null || latest === null || extremes === null}
 	<p>No data is stored for this region yet. Reload in a few minutes to try again.</p>
@@ -56,21 +62,42 @@
 	</div>
 
 	<div class="overview">
-		<!-- Big numbers for a quick read, and the text summary of the chart below. Wrapped, because the
-			tiles and their note are two elements, and each would otherwise take a grid cell. -->
-		<div>
+		<!-- Big numbers for a quick read, and the text summary of the chart below. -->
+		<Card enter={0}>
+			<h2>Forecast at a glance</h2>
+			<InfoButton title="Forecast at a glance">
+				<p>
+					The newest forecast for {title}, and the lowest and highest forecast over the chosen
+					period, in grams of CO₂ per kilowatt-hour. Lower is cleaner.
+				</p>
+				<p>Regions only have forecasts. Measured values are only published for Great Britain as a whole.</p>
+			</InfoButton>
 			<ForecastTiles {latest} {extremes} range={data.range} />
-		</div>
+		</Card>
 
-		<Card>
+		<Card enter={1}>
 			<h2>Fuel mix now</h2>
+			<InfoButton title="Fuel mix now">
+				<p>
+					Where {title}'s electricity is coming from right now. Renewables (wind, solar, hydro and
+					biomass) and nuclear release little or no CO₂, while fossil fuels (gas and coal) release
+					the most.
+				</p>
+			</InfoButton>
 			<FuelMixBar mix={latest.mix} />
 		</Card>
 	</div>
 
 	<section class="chart">
-		<Card>
+		<Card enter={2}>
 			<h2>Forecast over {rangePhrase}</h2>
+			<InfoButton title="Forecast over {rangePhrase}">
+				<p>
+					The forecast carbon intensity for {title} for each half hour over the chosen period. Lower
+					is cleaner, so the dips are the best times to use electricity.
+				</p>
+				<p>Move the slider under the chart, or touch the chart, to read any half hour.</p>
+			</InfoButton>
 			<!-- A boundary catches an error thrown while the chart renders, and shows `failed` in its
 				place, so a chart bug does not take the rest of the page with it. It does not catch errors
 				from `load`: those happen before the page renders, and go to +error.svelte. -->
@@ -94,10 +121,6 @@
 		font-size: var(--text-sm);
 	}
 
-	h1 {
-		margin-bottom: var(--space-2);
-	}
-
 	.summary {
 		display: flex;
 		flex-wrap: wrap;
@@ -117,22 +140,20 @@
 	}
 
 	/* Mobile first: tiles above the fuel mix. Side by side once there is room, the same 60rem
-	   breakpoint as the regions page (a media query cannot read a custom property). */
+	   breakpoint as the regions page (a media query cannot read a custom property). The two
+	   widgets stretch to the same height, so the row edges line up. */
 	.overview {
 		display: grid;
 		gap: var(--space-4);
-		max-width: var(--content-max-width);
 	}
 
 	@media (min-width: 60rem) {
 		.overview {
-			grid-template-columns: 3fr 2fr;
-			align-items: start;
+			grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
 		}
 	}
 
 	.chart {
-		max-width: var(--content-max-width);
 		margin-top: var(--space-4);
 	}
 </style>

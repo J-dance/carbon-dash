@@ -4,6 +4,15 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<!-- Applies the theme saved by the toggle (ThemeToggle.svelte) before the page paints, so a
+			reader who chose dark does not see a flash of light first. The key must match
+			THEME_STORAGE_KEY in src/lib/theme.ts. try/catch: localStorage can be blocked. -->
+		<script>
+			try {
+				const theme = localStorage.getItem("theme");
+				if (theme === "light" || theme === "dark") document.documentElement.style.colorScheme = theme;
+			} catch {}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

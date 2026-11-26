@@ -19,24 +19,46 @@
 	 */
 	color-scheme: light dark;
 
-	--bg: light-dark(#edeff2, #0b0d10);
+	--bg: light-dark(#edeff2, #15181c);
 	/* Decoration only: the dot grid on the canvas, never behind text on its own. */
-	--bg-dot: light-dark(#c9ced6, #232830);
-	--surface: light-dark(#ffffff, #16191e);
+	--bg-dot: light-dark(#c9ced6, #2a2f36);
+	--surface: light-dark(#ffffff, #1d2127);
 	/* A step back from --surface, for tiles and chips inside a widget. */
-	--surface-sunken: light-dark(#f3f5f7, #1e2228);
+	--surface-sunken: light-dark(#f3f5f7, #262a31);
 	--text: light-dark(#12151a, #eef1f4);
 	--text-muted: light-dark(#555d68, #9aa3ae);
-	--border: light-dark(#7c8490, #6c7480);
+	--border: light-dark(#7c8490, #747c88);
 	/* Quiet dividers inside a widget. Decoration only, so it is exempt from the 3:1 rule. */
-	--hairline: light-dark(#e1e4e8, #262b32);
+	--hairline: light-dark(#e1e4e8, #2e333a);
 	--accent: light-dark(#0a6f8c, #3ccbea);
-	--accent-contrast: light-dark(#ffffff, #0b0d10);
+	--accent-contrast: light-dark(#ffffff, #15181c);
 	--focus-ring: light-dark(#1b57c8, #8db4ff);
-	/* light-dark() only takes colours, so the shadow's colour switches rather than the shadow. It is
-	   transparent in dark mode, where shadows barely show and the hairline border does that job. */
-	--shadow-color: light-dark(rgb(18 21 26 / 0.05), transparent);
-	--shadow-widget: 0 1px 2px var(--shadow-color), 0 8px 24px var(--shadow-color);
+	/* Depth. light-dark() only takes colours, so the shadow colours switch rather than the shadows.
+	   Widgets get layered shadows: a tight one that grounds the edge and a wide soft one below that
+	   lifts it off the canvas. Dark mode needs much stronger shadows to show at all, plus a faint
+	   light line along the top edge (--highlight), as if lit from above. */
+	--shadow-near: light-dark(rgb(18 21 26 / 0.06), rgb(0 0 0 / 0.3));
+	--shadow-far: light-dark(rgb(18 21 26 / 0.09), rgb(0 0 0 / 0.45));
+	--highlight: light-dark(rgb(255 255 255 / 0), rgb(255 255 255 / 0.05));
+	--shadow-widget:
+		inset 0 1px 0 var(--highlight), 0 1px 2px var(--shadow-near), 0 3px 8px var(--shadow-near),
+		0 14px 32px -10px var(--shadow-far);
+	/* Things that float above the page, like an info note. */
+	--shadow-raised: 0 4px 10px var(--shadow-near), 0 18px 44px var(--shadow-far);
+
+	/* The carbon intensity index, very low to very high: green through amber to red. Each is 3:1 or
+	   more against --surface, --surface-sunken and its own 16% tint (the badge's fill). The index
+	   is always shown as a word too, so the colour is never the only signal. Pick one for an
+	   element with data-index (see below), then use var(--index-color). */
+	--index-very-low: light-dark(#178a4a, #3dd68c);
+	--index-low: light-dark(#568a12, #a3d64a);
+	--index-moderate: light-dark(#a16a12, #f0b43c);
+	--index-high: light-dark(#d4480b, #ff7a33);
+	--index-very-high: light-dark(#c92a2a, #ff6b6b);
+
+	/* The two series in line charts: what actually happened, and what was forecast. */
+	--data-actual: var(--accent);
+	--data-forecast: light-dark(#7048e8, #b197fc);
 
 	/* Fuel groups in charts. Each is 3:1 or more against --surface. The fuel mix bar also gives
 	   renewable stripes and imports a hatch, and its legend gives every share as text. */
@@ -75,11 +97,11 @@
 	--text-base: 1rem;
 	--text-lg: 1.25rem;
 	--text-xl: 1.75rem;
-	--text-display: clamp(3rem, 2.4rem + 2.5vw, 4.5rem);
+	--text-display: clamp(2.75rem, 2.2rem + 2vw, 3.75rem);
 	/* Fluid sizes: they grow with the viewport between a phone and a wide screen, so headings
 	   never need a media query. The rem part keeps them scaling with browser zoom. */
 	--text-standfirst: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
-	--text-headline: clamp(2.25rem, 1.5rem + 3vw, 3.75rem);
+	--text-headline: clamp(2rem, 1.4rem + 2.2vw, 3rem);
 	--line-height: 1.5;
 
 	/* Shape and layout */
@@ -88,15 +110,20 @@
 	--radius-lg: 18px;
 	--radius-pill: 999px;
 	--border-width: 1px;
-	--content-max-width: 72rem;
-	/* Space between the page edge and the content: 1rem on a phone, up to 2rem on a wide screen. */
-	--gutter: clamp(var(--space-4), 3vw, var(--space-8));
+	/* Wide, so a laptop screen is used almost edge to edge, with a little margin on larger ones. */
+	--content-max-width: 84rem;
+	/* Space between the page edge and the content: 1rem on a phone, up to 1.5rem on a wide screen. */
+	--gutter: clamp(var(--space-4), 2vw, var(--space-6));
 
 	/* Motion */
 	--transition-fast: 150ms ease;
+	/* Things that move across, like the nav switch's thumb. */
+	--transition-slide: 300ms cubic-bezier(0.22, 1, 0.36, 1);
 	/* How charts come in: see "Chart entrance" below. */
 	--reveal-duration: 600ms;
 	--reveal-step: 120ms;
+	/* How widgets come in: see "Widget entrance" below. */
+	--rise-step: 110ms;
 	--reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--pop-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -104,9 +131,11 @@
 @media (prefers-reduced-motion: reduce) {
 	:root {
 		--transition-fast: 0s;
+		--transition-slide: 0s;
 		/* Zero length and zero delay: charts appear at once. */
 		--reveal-duration: 0s;
 		--reveal-step: 0s;
+		--rise-step: 0s;
 	}
 }
 
@@ -152,7 +181,9 @@
 .reveal,
 .fade,
 .pop {
-	animation-delay: calc(var(--order, 0) * var(--reveal-step));
+	/* --enter is the widget's place in the widget entrance (below), inherited from the widget the
+	   chart is in, so a chart starts drawing once its widget has started to rise. */
+	animation-delay: calc(var(--enter, 0) * var(--rise-step) + var(--order, 0) * var(--reveal-step));
 	animation-fill-mode: backwards;
 }
 
@@ -174,6 +205,28 @@
 	animation-name: pop;
 	animation-duration: calc(var(--reveal-duration) * 0.6);
 	animation-timing-function: var(--pop-ease);
+}
+
+/*
+ * Widget entrance. Every widget rises into place: it fades in while moving up a little, with the
+ * same length and easing as the chart entrance, and each starts a little after the one before it
+ * (one step is --rise-step), so they come in as a wave in reading order.
+ *
+ * Card has the class and takes its place as the `enter` prop; or set `--enter` on a wrapper around
+ * a widget. A separate property from `--order`, so a widget's place does not shift the charts
+ * inside it. A widget that is newly shown (after moving to another page) rises again; one that
+ * stays on screen (a filter change) does not. Reduced motion makes it instant.
+ */
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translateY(var(--space-4));
+	}
+}
+
+.rise {
+	animation: rise var(--reveal-duration) var(--reveal-ease) backwards;
+	animation-delay: calc(var(--enter, 0) * var(--rise-step));
 }
 
 body {
@@ -209,6 +262,15 @@ a {
 	text-underline-offset: 0.2em;
 }
 
+/* The sticky masthead covers the top of the page. scroll-padding-top makes anything the browser
+   scrolls to (the skip link's target, an element reached with Tab) stop below it instead of
+   under it. --masthead-height is the masthead's measured height (its 0.75rem gap above the nav
+   plus the nav's height), in rem so it grows with text zoom like the nav. */
+html {
+	--masthead-height: 3.75rem;
+	scroll-padding-top: calc(var(--masthead-height) + var(--space-4));
+}
+
 * {
 	box-sizing: border-box;
 	padding: 0;
@@ -226,6 +288,28 @@ a {
 	white-space: nowrap;
 }
 
+/* One place maps an index value to its colour. Put data-index="high" (any of the five values) on
+   an element and it and its children can use var(--index-color). */
+[data-index="very low"] {
+	--index-color: var(--index-very-low);
+}
+
+[data-index="low"] {
+	--index-color: var(--index-low);
+}
+
+[data-index="moderate"] {
+	--index-color: var(--index-moderate);
+}
+
+[data-index="high"] {
+	--index-color: var(--index-high);
+}
+
+[data-index="very high"] {
+	--index-color: var(--index-very-high);
+}
+
 :focus-visible {
 	outline: 2px solid var(--focus-ring);
 	outline-offset: 2px;
@@ -237,5 +321,6 @@ main {
 	width: 100%;
 	max-width: calc(var(--content-max-width) + 2 * var(--gutter));
 	margin-inline: auto;
-	padding: var(--space-6) var(--gutter) var(--space-12);
+	/* No padding on top: each page's opening starts right under the nav row (see the layout). */
+	padding: 0 var(--gutter) var(--space-12);
 }

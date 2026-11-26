@@ -57,7 +57,7 @@ Each step lists the Svelte concepts it is meant to teach.
     - [x] Filterable: period and tier links (see below)
     - [x] Tier badge: `TierBadge` shows an icon (tick, dash, exclamation mark), the label and a colour, so the tier never relies on colour alone. The colours are the `--tier-*` tokens in `src/routes/layout.css`, contrast-checked in light and dark mode
     - [x] Index word with a 5-step meter: `IndexBadge` (moved out of the "now" card, which uses it too) under each region's average, in the same cell. The API gives an index per period, not for an average, so `indexForIntensity` in `src/lib/metrics/intensity-index.ts` (tested) works out the band from the rounded average, using the API's regional bands (see Data quirks). A separate Index column made the table too wide for a phone, and the index is a reading of that same number
-    - [x] Region gap tile: `RegionGapTile` above the table shows the cleanest and dirtiest region and the difference between them. `regionGap` in `src/lib/regions/stats.ts` (tested), called by `/api/regions` on all 14 regions before the tier filter, since the gap is about the whole country and not the tier on screen
+    - [x] Region gap tile: `RegionGapTile` (beside the table on desktop, above it on a phone) shows the cleanest and dirtiest region and the difference between them. `regionGap` in `src/lib/regions/stats.ts` (tested), called by `/api/regions` on all 14 regions before the tier filter, since the gap is about the whole country and not the tier on screen
   - [x] Filters synced to URL query params (date range, tier)
     - [x] Date range and tier: plain links (`FilterLinks`, wrapped by `RangeFilter` and `TierFilter`) that rewrite `?range=` and `?tier=` and keep the other params (`withParam` in `src/lib/url.ts`, tested, shared with the row selection). Links rather than `goto`, so they work without JavaScript and open in a new tab. SvelteKit 3 spells "stay put and keep focus" as `data-sveltekit-reset="false"`, not the old `noscroll` and `keepfocus`
     - **No fuel source filter (decided 2026-11-26).** The table has no fuel data to filter on, so it would need a renewable % column and a new query first. Dropped from the MVP, along with the renewable % column
@@ -77,7 +77,7 @@ Each step lists the Svelte concepts it is meant to teach.
   - [x] Concepts: dynamic routes (`/regions/[id]`), `$app/state` and `goto`, shared state in a `.svelte.ts` module, `<svelte:boundary>`. `goto` and shared `.svelte.ts` state were not needed (links do the navigation, and the URL holds the shared state), so they were explained rather than used
 - [ ] **6. Accessibility, tests and feedback**
   - [ ] Keyboard navigation, focus states, `aria` labels, text/table alternative for each chart, tier not shown by colour alone
-  - [ ] Regions table at 320px wide (WCAG reflow): it fits at 375px but is about 30px too wide at 320px, held up by the "(gCO2/kWh)" heading and the tier badges
+  - [x] Regions table at 320px wide (WCAG reflow): it was about 30px too wide at 320px, held up by the "(gCO2/kWh)" heading and the tier badges. Fixed in the restyle: the heading is now "Average forecast" with the unit in the caption, and below 40rem the table text, cell padding and badges are a step smaller
   - [ ] axe / Lighthouse audit, record scores
   - [ ] Vitest for tier logic and API client, one Playwright smoke test
   - [ ] Show 2-3 people the app, write up what they struggled with, make one visible change
@@ -304,7 +304,7 @@ There are 3 areas of data: intensity, statistics (time comparison) and generatio
 | "Now" card                            | Current intensity, index badge, vs 30-day average                                                                       | Big number, labelled badge, small delta          |
 | Fuel mix now                          | Renewable / low-carbon / fossil %                                                                                       | Stacked bar or donut with labels                 |
 | (Stretch) Next 48h                    | Forecast intensity, cleanest and dirtiest window highlighted                                                            | Line chart with highlighted band (cut from MVP)  |
-| Last 24h                              | Actual vs forecast intensity, with forecast accuracy summary (mean error, bias, share within +/-10%) in the card header | Two-line chart (solid actual, dashed forecast)   |
+| Last 24h                              | Actual vs forecast intensity, with forecast accuracy summary (mean error, bias, share within +/-10%) in its own widget beside "now" and the fuel mix (moved out of the chart's card header in the restyle, so the top row holds three widgets and more fits on one screen) | Two-line chart (solid actual, dashed forecast)   |
 | (Stretch) Fuel mix over time          | National fuel shares over the last day or week                                                                          | Stacked area chart (cut from MVP, time is short) |
 | (Stretch) Forecast accuracy over time | Forecast vs actual error over time                                                                                      | Line of error                                    |
 
@@ -323,7 +323,7 @@ Statistics over time (averages, ranges) are drawn from the data stored in Postgr
 
 ### UI decisions
 
-- **Regions layout:** master-detail. On desktop the table is on the left (about 60%) and a sticky preview panel is on the right, so clicking down the table updates the preview without scrolling. On narrow screens the panel stacks below the table. No drawer or modal (avoids focus-trap work), and no hover-only previews (not accessible on touch or keyboard).
+- **Regions layout:** master-detail. On desktop the table is on the left (about 60%), and on the right the region gap widget sits above a sticky preview panel, so clicking down the table updates the preview without scrolling. On narrow screens they stack: gap widget, table, then the panel. No drawer or modal (avoids focus-trap work), and no hover-only previews (not accessible on touch or keyboard).
 - **Selection** is a link on each row's region name (keyboard reachable) to `?region=13`, so it can be shared. **A link, not a button (decided 2026-11-26):** choosing a region changes the URL, which is navigation, and a link works before JavaScript loads, like the filter links. `aria-current="true"` marks the selected row. A status line in the preview panel announces the selected region (not the whole panel, see step 5).
 - **Tier period** defaults to the last 24 hours, with a period control (24h / 7 days / 30 days) in a filter row above the table, synced to the URL.
 - **Index** is shown as a word plus a 5-step meter, not by colour. **Tiers** use an icon, a label and a colour (never colour alone). Fuel mix is shown as four groups (renewable, nuclear, gas, imports), not nine fuels.

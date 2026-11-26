@@ -33,7 +33,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-1);
-		padding: 2px var(--space-3) 2px var(--space-2);
+		padding: 2px var(--space-2) 2px var(--space-1);
 		border: var(--border-width) solid var(--tier-border);
 		border-radius: var(--radius-pill);
 		background: var(--tier-bg);

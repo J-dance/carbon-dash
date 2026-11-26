@@ -2,6 +2,10 @@
 	import { page } from "$app/state";
 	import type { PageProps } from "./$types";
 	import { parseRegionId } from "#lib/regions/selection.ts";
+	import { RANGE_PHRASES } from "#lib/regions/types.ts";
+	import Card from "#lib/components/Card.svelte";
+	import InfoButton from "#lib/components/InfoButton.svelte";
+	import PageHeader from "#lib/components/PageHeader.svelte";
 	import RangeFilter from "#lib/components/RangeFilter.svelte";
 	import RegionGapTile from "#lib/components/RegionGapTile.svelte";
 	import RegionPreview from "#lib/components/RegionPreview.svelte";
@@ -41,7 +45,15 @@
 	<title>Regions | Carbon Dash</title>
 </svelte:head>
 
-<h1>Regions</h1>
+{#snippet rangeKicker()}
+	Ranked over {RANGE_PHRASES[data.range]}
+{/snippet}
+
+<PageHeader
+	title="Regions"
+	kicker={rangeKicker}
+	standfirst="Average forecast carbon intensity for each region of Great Britain. Choose a region to see its forecast and fuel mix."
+/>
 
 {#if data.newestPeriod === null}
 	<p>No data yet.</p>
@@ -58,22 +70,37 @@
 		<TierFilter current={data.tier} />
 	</div>
 
-	{#if data.gap !== null}
-		<RegionGapTile gap={data.gap} range={data.range} />
-	{/if}
-
-	<!-- Master-detail (README, UI decisions): the table, with the preview panel beside it on a wide
-		screen and below it on a narrow one. -->
+	<!-- Master-detail (README, UI decisions): the table, with the gap widget and the preview panel
+		beside it on a wide screen, and all three stacked on a narrow one (gap first, as a summary). -->
 	<div class="layout">
-		<div>
-			{#if data.regions.length === 0}
-				<p>No regions match these filters. Choose a different period or tier.</p>
-			{:else}
-				<RegionsTable regions={data.regions} range={data.range} {selectedId} />
-			{/if}
+		{#if data.gap !== null}
+			<!-- --enter: each widget's place in the staggered entrance (layout.css), table first. -->
+			<div class="gap" style:--enter="1">
+				<RegionGapTile gap={data.gap} range={data.range} />
+			</div>
+		{/if}
+
+		<div class="table" style:--enter="0">
+			<Card>
+				<InfoButton title="Regions by average forecast">
+					<p>
+						Every region of Great Britain, ranked by its average forecast carbon intensity over the
+						chosen period. Lower is cleaner.
+					</p>
+					<p>
+						Tiers split the regions into thirds: Top is the cleanest third and Bottom the dirtiest.
+						Choose a region's name to see its forecast and fuel mix.
+					</p>
+				</InfoButton>
+				{#if data.regions.length === 0}
+					<p>No regions match these filters. Choose a different period or tier.</p>
+				{:else}
+					<RegionsTable regions={data.regions} range={data.range} {selectedId} />
+				{/if}
+			</Card>
 		</div>
 
-		<aside class="preview" aria-label="Region preview">
+		<aside class="preview rise" style:--enter="2" aria-label="Region preview">
 			<!-- Always in the page, so a screen reader hears it change. A live region that is added
 				along with its text is often not announced. -->
 			<p class="visually-hidden" role="status">{previewStatus}</p>
@@ -106,8 +133,7 @@
 <style>
 	.layout {
 		display: grid;
-		gap: var(--space-6);
-		max-width: var(--content-max-width);
+		gap: var(--space-4);
 	}
 
 	/* Lets the table's column shrink below its content's width instead of pushing the page wider. */
@@ -115,32 +141,49 @@
 		min-width: 0;
 	}
 
+	/* The same surface as a Card widget. It is not a Card because it is an <aside>, not an
+	   <article>, and it has no h2 title of its own until a region is chosen. */
 	.preview {
-		padding: var(--space-4);
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--radius-md);
+		padding: clamp(var(--space-4), 2.5vw, var(--space-6));
+		border: var(--border-width) solid var(--hairline);
+		border-radius: var(--radius-lg);
 		background: var(--surface);
+		box-shadow: var(--shadow-widget);
 	}
 
-	/* Side by side once there is room for both: about 60% table and 40% panel. The panel is
-	   sticky, so it stays in view while you go down the table. 60rem is written out because a
-	   media query cannot read a custom property. */
+	/* Side by side once there is room: the table on the left (about 60%), and on the right the gap
+	   widget with the preview panel under it. The table spans both rows. Only the panel is sticky,
+	   so it stays in view below the masthead while you go down the table; the gap widget scrolls
+	   away. 60rem is written out because a media query cannot read a custom property. */
 	@media (min-width: 60rem) {
 		.layout {
-			grid-template-columns: 3fr 2fr;
+			grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+			grid-template-areas:
+				"table gap"
+				"table preview";
+			grid-template-rows: auto 1fr;
 			align-items: start;
 		}
 
+		.gap {
+			grid-area: gap;
+		}
+
+		.table {
+			grid-area: table;
+		}
+
 		.preview {
+			grid-area: preview;
 			position: sticky;
-			top: var(--space-4);
+			top: calc(var(--masthead-height) + var(--space-4));
 		}
 	}
 
 	.filters {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--space-2) var(--space-8);
-		padding-bottom: var(--space-4);
+		gap: var(--space-3) var(--space-8);
+		margin-bottom: var(--space-6);
 	}
 </style>

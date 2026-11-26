@@ -1,10 +1,9 @@
 <script lang="ts">
 	import "@fontsource-variable/newsreader/opsz.css";
 	import "@fontsource-variable/schibsted-grotesk";
-	import { dev } from "$app/env";
 	import { page } from "$app/state";
 	import favicon from "#lib/assets/favicon.svg";
-	import DevThemeToggle from "#lib/components/DevThemeToggle.svelte";
+	import ThemeToggle from "#lib/components/ThemeToggle.svelte";
 	import "./layout.css";
 	import type { LayoutProps } from "./$types";
 
@@ -33,18 +32,17 @@
 <!-- Lets keyboard users jump past the nav. Hidden until it receives focus. -->
 <a class="skip-link" href="#main">Skip to main content</a>
 
+<!-- The theme toggle and the nav, at the top right of the page, staying there as you scroll.
+	Each page's own opening (PageHeader) has the headline. -->
 <header class="masthead">
-	<div class="bar">
-		<p class="brand">
-			<a class="wordmark" href="/">Carbon Dash</a>
-			<span class="tagline">Britain's electricity, half hour by half hour</span>
-		</p>
-		<nav aria-label="Main">
-			{#each NAV_LINKS as link (link.href)}
-				<a href={link.href} aria-current={currentFor(link.href)}>{link.label}</a>
-			{/each}
-		</nav>
-	</div>
+	<ThemeToggle />
+	<!-- Two pages, so the nav is a switch: still two links (choosing a page is navigation), with a
+		thumb that slides behind the current one. -->
+	<nav class="switch" aria-label="Main">
+		{#each NAV_LINKS as link (link.href)}
+			<a href={link.href} aria-current={currentFor(link.href)}>{link.label}</a>
+		{/each}
+	</nav>
 </header>
 
 <main id="main">
@@ -52,96 +50,128 @@
 </main>
 
 <footer>
+	<p class="brand">Carbon Dash</p>
 	<p>
 		Data from the
 		<a href="https://carbon-intensity.github.io/api-definitions/">Carbon Intensity API</a>
 	</p>
 </footer>
 
-<!-- `dev` is a constant, false in a production build, so the toggle is left out of it entirely. -->
-{#if dev}
-	<DevThemeToggle />
-{/if}
-
 <style>
+	/* The theme toggle and nav switch on a row of their own at the top right, lined up with the
+	   content's right edge like `main`. The page's headline starts where this row ends, so the top
+	   of the headline lines up with the bottom of the nav. Sticky, so the nav stays in reach while
+	   you scroll. html's scroll-padding-top (layout.css) keeps focused elements from scrolling under
+	   it (WCAG 2.4.11, focus not obscured). */
 	.masthead {
-		padding: var(--space-4) var(--gutter) 0;
+		position: sticky;
+		top: 0;
+		z-index: 5;
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--space-2);
+		width: 100%;
+		max-width: calc(var(--content-max-width) + 2 * var(--gutter));
+		margin-inline: auto;
+		padding: var(--space-3) var(--gutter) 0;
 	}
 
-	/* The masthead is a widget too: the same surface, radius and shadow as the cards below it. */
-	.bar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-3) var(--space-6);
-		max-width: var(--content-max-width);
-		margin-inline: auto;
-		padding: var(--space-3) var(--space-4) var(--space-3) var(--space-6);
+	/* On a phone the nav row is centred, so it sits evenly above the page rather than off to one
+	   side. */
+	@media (max-width: 40rem) {
+		.masthead {
+			justify-content: center;
+		}
+	}
+
+	/* The switch: two equal halves in a rounded track, so the thumb moves by exactly its own width.
+	   position: relative so the thumb (::before) is placed inside it. */
+	.switch {
+		position: relative;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		padding: 6px;
 		border: var(--border-width) solid var(--hairline);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-pill);
 		background: var(--surface);
 		box-shadow: var(--shadow-widget);
 	}
 
-	.brand {
-		display: flex;
-		flex-direction: column;
+	/* The thumb: one inverted shape behind the current link. It sits on the left half and slides
+	   to the right half when Regions is current, so moving between pages animates it (the layout
+	   stays mounted on navigation, so this element and its transition persist). --transition-slide
+	   is 0s for reduced motion. A page in neither section (the error page) has no thumb. */
+	.switch::before {
+		content: "";
+		position: absolute;
+		top: 6px;
+		bottom: 6px;
+		left: 6px;
+		width: calc(50% - 6px);
+		border-radius: var(--radius-pill);
+		background: var(--text);
+		transition:
+			transform var(--transition-slide),
+			opacity var(--transition-fast);
 	}
 
-	.wordmark {
-		color: var(--text);
-		font-family: var(--font-serif);
-		font-size: var(--text-lg);
-		font-weight: 700;
-		line-height: 1.2;
-		letter-spacing: -0.01em;
-		text-decoration: none;
+	.switch:has(a:nth-child(2)[aria-current])::before {
+		transform: translateX(100%);
 	}
 
-	.tagline {
-		color: var(--text-muted);
-		font-size: var(--text-xs);
+	.switch:not(:has(a[aria-current]))::before {
+		opacity: 0;
 	}
 
-	nav {
-		display: flex;
-		gap: var(--space-1);
-	}
-
-	nav a {
+	/* position: relative lifts the links above the thumb. */
+	.switch a {
+		position: relative;
 		padding: var(--space-2) var(--space-4);
 		border-radius: var(--radius-pill);
 		color: var(--text);
 		font-size: var(--text-sm);
 		font-weight: 500;
+		line-height: 1.2;
+		text-align: center;
 		text-decoration: none;
-		transition: background-color var(--transition-fast);
+		transition: color var(--transition-slide);
 	}
 
-	nav a:hover {
-		background: var(--bg);
+	.switch a:not([aria-current]):hover {
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
 	}
 
-	/* The current page's pill is inverted (dark on light, or light on dark): a change in lightness
-	   that reads without colour vision, and screen readers get it from aria-current. */
-	nav a[aria-current] {
-		background: var(--text);
+	/* The current page's text is inverted on the thumb: a change in lightness that reads without
+	   colour vision, and screen readers get it from aria-current. */
+	.switch a[aria-current] {
 		color: var(--surface);
 	}
 
+	/* The app's name, with the data credit stacked under it. */
 	footer {
+		display: grid;
+		gap: var(--space-1);
 		padding: var(--space-6) var(--gutter);
 		color: var(--text-muted);
 		font-size: var(--text-sm);
 		text-align: center;
 	}
 
-	/* Moved off-screen, not display: none, so it stays in the tab order. */
+	/* The app's name lives here, since the masthead is only the nav. */
+	.brand {
+		color: var(--text);
+		font-family: var(--font-serif);
+		font-size: var(--text-lg);
+		font-weight: 700;
+	}
+
+	/* Moved off-screen, not display: none, so it stays in the tab order. Above the sticky masthead
+	   (z-index 5), so it is not hidden behind it when it appears. */
 	.skip-link {
 		position: absolute;
 		left: -9999px;
-		z-index: 1;
+		z-index: 10;
 		padding: var(--space-2) var(--space-4);
 		border-radius: var(--radius-pill);
 		background: var(--text);

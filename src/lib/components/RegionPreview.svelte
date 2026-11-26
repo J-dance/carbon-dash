@@ -56,8 +56,13 @@
 {/if}
 
 <style>
+	/* The region's name is the panel's title, in the serif like every widget title, a step larger. */
 	h2 {
-		font-size: var(--text-lg);
+		font-family: var(--font-serif);
+		font-size: var(--text-xl);
+		font-weight: 600;
+		line-height: 1.15;
+		letter-spacing: -0.01em;
 	}
 
 	.summary {
@@ -65,7 +70,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-2);
-		margin-top: var(--space-1);
+		margin-top: var(--space-2);
 		color: var(--text-muted);
 		font-size: var(--text-sm);
 	}
@@ -75,12 +80,20 @@
 		margin-top: var(--space-4);
 	}
 
+	/* Each part of the panel is split from the one above by a hairline. */
 	section {
 		margin-top: var(--space-4);
+		padding-top: var(--space-4);
+		border-top: var(--border-width) solid var(--hairline);
 	}
 
 	h3 {
-		margin-bottom: var(--space-2);
-		font-size: var(--text-base);
+		margin-bottom: var(--space-3);
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+
+	.more {
+		font-weight: 500;
 	}
 </style>

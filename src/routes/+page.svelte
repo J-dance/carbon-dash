@@ -2,8 +2,10 @@
 	import AccuracySummary from "#lib/components/AccuracySummary.svelte";
 	import Card from "#lib/components/Card.svelte";
 	import FuelMixCard from "#lib/components/FuelMixCard.svelte";
+	import InfoButton from "#lib/components/InfoButton.svelte";
 	import IntensityNowCard from "#lib/components/IntensityNowCard.svelte";
 	import LineChart from "#lib/components/LineChart.svelte";
+	import PageHeader from "#lib/components/PageHeader.svelte";
 	import { compareToAverage } from "#lib/metrics/compare.ts";
 	import { gridStandfirst } from "#lib/national/standfirst.ts";
 	import type { PageProps } from "./$types";
@@ -45,24 +47,24 @@
 	<title>Home | Carbon Dash</title>
 </svelte:head>
 
-<!-- Opens like a news article: a kicker (the small line above), the headline, then a standfirst
-	that says what the numbers mean. -->
-<header class="lede">
+<!-- Passed to PageHeader only when there is a period. The {#if} is still needed inside, because
+	TypeScript cannot see that check from in here. -->
+{#snippet latestPeriod()}
 	{#if period !== null}
-		<p class="kicker">
-			<span class="dot" aria-hidden="true"></span>
-			Latest 30-minute period:
-			<time datetime={period.start.toISOString()}>{timeFormat.format(period.start)}</time>
-			to
-			<time datetime={period.end.toISOString()}>{timeFormat.format(period.end)}</time>
-			UTC
-		</p>
+		Latest 30-minute period:
+		<time datetime={period.start.toISOString()}>{timeFormat.format(period.start)}</time>
+		to
+		<time datetime={period.end.toISOString()}>{timeFormat.format(period.end)}</time>
+		UTC
 	{/if}
-	<h1>Great Britain Carbon Intensity</h1>
-	{#if standfirst !== null}
-		<p class="standfirst">{standfirst}</p>
-	{/if}
-</header>
+{/snippet}
+
+<PageHeader
+	title="Great Britain Carbon Intensity"
+	kicker={period === null ? undefined : latestPeriod}
+	{standfirst}
+	live
+/>
 
 {#if data.latest !== null && period !== null}
 	{#if data.isStale}
@@ -73,13 +75,50 @@
 		</p>
 	{/if}
 
+	<!-- In the order they sit on a desktop, left to right, so the reading order matches. -->
 	<div class="widgets">
-		<IntensityNowCard intensity={data.latest.now} average30d={data.latest.average30d} />
-		<FuelMixCard mix={data.latest.mix} />
-		<div class="wide">
+		<!-- --enter: each widget's place in the staggered entrance (layout.css). -->
+		<div class="now" style:--enter="0">
+			<IntensityNowCard intensity={data.latest.now} average30d={data.latest.average30d} />
+		</div>
+		<div class="fuel" style:--enter="1">
+			<FuelMixCard mix={data.latest.mix} />
+		</div>
+		<div class="accuracy" style:--enter="2">
+			<Card>
+				<h2>Forecast accuracy, last 24 hours</h2>
+				<InfoButton title="Forecast accuracy">
+					<p>
+						How close the forecasts were to what actually happened, over the last 24 hours.
+					</p>
+					<p>
+						Average error is how far off a forecast usually was. Bias says whether forecasts tended
+						to come out too high or too low. The last figure is how often a forecast was within 10%
+						of the real value.
+					</p>
+					<!-- How much data the figures rest on. Kept here rather than in the widget, so the widget
+						stays short. -->
+					{#if data.history.accuracy}
+						<p>
+							Based on the {data.history.accuracy.count} half-hour periods that have an actual
+							value.
+						</p>
+					{/if}
+				</InfoButton>
+				<AccuracySummary accuracy={data.history.accuracy} />
+			</Card>
+		</div>
+		<div class="chart" style:--enter="3">
 			<Card>
 				<h2>Last 24 hours: actual vs forecast</h2>
-				<AccuracySummary accuracy={data.history.accuracy} />
+				<InfoButton title="Actual vs forecast">
+					<p>
+						Carbon intensity for each half hour of the last 24 hours. The solid line is what
+						actually happened and the dashed line is what was forecast, so you can see how far apart
+						they were.
+					</p>
+					<p>Move the slider under the chart, or touch the chart, to read any half hour.</p>
+				</InfoButton>
 				<LineChart periods={data.history.periods} subject="national carbon intensity" />
 			</Card>
 		</div>
@@ -89,53 +128,20 @@
 {/if}
 
 <style>
-	.lede {
-		display: grid;
-		gap: var(--space-3);
-		margin: var(--space-6) 0 var(--space-8);
-	}
-
-	.kicker {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0 var(--space-1);
-		color: var(--text-muted);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	/* A small marker before the kicker, as news sites use for a live story. It repeats nothing the
-	   words do not say, so it is hidden from screen readers. */
-	.dot {
-		width: 0.5rem;
-		height: 0.5rem;
-		margin-right: var(--space-1);
-		border-radius: var(--radius-pill);
-		background: var(--accent);
-	}
-
-	/* max-width in ch keeps the line a comfortable reading length on a wide screen. */
-	.standfirst {
-		max-width: 40ch;
-		font-family: var(--font-serif);
-		font-size: var(--text-standfirst);
-		line-height: 1.35;
-		text-wrap: pretty;
-	}
-
 	.stale {
 		margin-bottom: var(--space-4);
 		font-size: var(--text-sm);
 	}
 
 	/*
-	 * The bento grid. Mobile first: one column, so the widgets stack. From 48rem the "now" and fuel
-	 * mix widgets sit side by side, the fuel mix wider because its legend needs the room, and a
-	 * `.wide` widget spans the whole row. minmax(0, …) lets a column shrink below its content.
-	 * Both widgets in a row stretch to the same height, so the row edges line up.
+	 * The bento grid, built to fit as much as it can on one screen. Named areas place each widget,
+	 * so the layout can change at each width without changing the markup.
+	 * - Mobile first: one column, so the widgets stack in source order.
+	 * - From 48rem: "now" and the fuel mix share a row, accuracy and the chart each take a row.
+	 * - From 72rem: now, the fuel mix and accuracy share the top row (fuel mix in the middle, a
+	 *   little wider for its legend), and the chart spans the row under them.
+	 * minmax(0, …) lets a column shrink below its content. Widgets in a row stretch to the same
+	 * height, so the row edges line up.
 	 */
 	.widgets {
 		display: grid;
@@ -143,13 +149,48 @@
 		gap: var(--space-4);
 	}
 
+	/* The areas are only named from 48rem. A grid-area that names an area the grid does not
+	   define stacks every widget in the same spot, so on a phone they keep their source order. */
 	@media (min-width: 48rem) {
 		.widgets {
 			grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+			grid-template-areas:
+				"now fuel"
+				"accuracy accuracy"
+				"chart chart";
+		}
+
+		.now {
+			grid-area: now;
+		}
+
+		.accuracy {
+			grid-area: accuracy;
+		}
+
+		.fuel {
+			grid-area: fuel;
+		}
+
+		.chart {
+			grid-area: chart;
 		}
 	}
 
-	.wide {
-		grid-column: 1 / -1;
+	@media (min-width: 72rem) {
+		.widgets {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+			grid-template-areas:
+				"now fuel accuracy"
+				"chart chart chart";
+		}
+	}
+
+	/* Each wrapper is a grid too, so the Card inside it fills the full row height. */
+	.now,
+	.accuracy,
+	.fuel,
+	.chart {
+		display: grid;
 	}
 </style>

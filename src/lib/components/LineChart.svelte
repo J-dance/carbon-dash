@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { scaleLinear, scaleUtc } from "d3-scale";
-	import { line } from "d3-shape";
+	import { area, line } from "d3-shape";
 	import type { Index } from "#lib/api/types.ts";
 
 	/**
@@ -29,7 +29,12 @@
 		subject: string;
 	} = $props();
 
-	const HEIGHT = 280;
+	// Unique per chart, for the id of the shading's gradient: two charts on one page must not share
+	// an id. The same on the server and in the browser.
+	const uid = $props.id();
+	const gradientId = `${uid}-shade`;
+
+	const HEIGHT = 220;
 	// Room outside the plot for the axis labels, in SVG units.
 	const MARGIN = { top: 12, right: 20, bottom: 28, left: 52 };
 	const TICK_GAP = 8;
@@ -125,6 +130,16 @@
 			.x((p) => x(p.time))
 			.y((p) => y(p.actual ?? 0));
 
+		// A soft shading under the main line, the actual where the series has one and otherwise the
+		// forecast, so the chart reads as a shape and not only a line. Decoration only: the line,
+		// the readout and the table carry the values.
+		const shaded = (p: (typeof points)[number]) => (showsActual ? p.actual : p.forecast);
+		const shadeArea = area<(typeof points)[number]>()
+			.defined((p) => shaded(p) !== null)
+			.x((p) => x(p.time))
+			.y0(innerHeight)
+			.y1((p) => y(shaded(p) ?? 0));
+
 		const xTickCount = innerWidth < NARROW_WIDTH ? X_TICK_COUNT_NARROW : X_TICK_COUNT_WIDE;
 		// Over more than a day the ticks land on midnights, so a time label would read "00:00" on
 		// every one. The date says which day it is instead.
@@ -141,6 +156,7 @@
 			yTicks: y.ticks(Y_TICK_COUNT).map((value) => ({ value, position: y(value) })),
 			forecastPath: forecastLine(points),
 			actualPath: actualLine(points),
+			shadePath: shadeArea(points),
 			description: `Line chart of the ${subject} in gCO2/kWh, ${showsActual ? "actual and forecast" : "forecast"}, from ${dateTimeFormat.format(start)} to ${dateTimeFormat.format(end)} UTC. The same data is in the table below the chart.`
 		};
 	});
@@ -173,8 +189,7 @@
 			{#if showsActual}
 				<span>Actual: {readout.actual}</span>
 			{/if}
-			<span>Forecast: {readout.forecast}</span>
-			<span class="unit">gCO₂/kWh</span>
+			<span>Forecast: {readout.forecast} <span class="unit">gCO₂/kWh</span></span>
 			<span>Forecast index: {readout.index}</span>
 		</p>
 
@@ -228,6 +243,29 @@
 								gCO₂/kWh
 							</text>
 						</g>
+
+						<!-- The shading fades from the line's colour at the top to nothing at the axis. It is
+							revealed with the line it sits under. -->
+						<defs>
+							<linearGradient
+								id={gradientId}
+								class="gradient"
+								class:forecast-shade={!showsActual}
+								x1="0"
+								y1="0"
+								x2="0"
+								y2="1"
+							>
+								<stop offset="0%" class="shade-top" />
+								<stop offset="100%" class="shade-bottom" />
+							</linearGradient>
+						</defs>
+						<path
+							class="reveal"
+							style:--order={showsActual ? 2 : 3}
+							fill="url(#{gradientId})"
+							d={chart.shadePath}
+						/>
 
 						<path class="series forecast reveal" style:--order="3" d={chart.forecastPath} />
 						{#if showsActual}
@@ -360,26 +398,59 @@
 		stroke-linejoin: round;
 	}
 
+	/* Actual in the accent teal, solid; forecast in violet, dashed. Two colours that stand apart,
+	   and solid against dashed, so the lines differ in pattern too, not only colour. Both are 3:1 or
+	   more against the widget in each theme. */
 	.actual {
-		stroke: var(--text);
+		stroke: var(--data-actual);
 	}
 
 	.forecast {
-		stroke: var(--accent);
+		stroke: var(--data-forecast);
 		stroke-dasharray: 5 5;
 	}
 
+	/* The shading's colour follows the line it sits under. It is set on the gradient, not the
+	   shaded path: the gradient's stops are inside <defs>, so they inherit from the gradient, not
+	   from the path that uses it. */
+	.gradient {
+		--shade-color: var(--data-actual);
+	}
+
+	.gradient.forecast-shade {
+		--shade-color: var(--data-forecast);
+	}
+
+	.shade-top {
+		stop-color: var(--shade-color);
+		stop-opacity: 0.22;
+	}
+
+	.shade-bottom {
+		stop-color: var(--shade-color);
+		stop-opacity: 0;
+	}
+
 	/* The key swatches are their own small SVGs, so they must not stretch to full width. */
+	/* The readout keeps the same height as you move along the chart. Each part has its own cell in
+	   a grid of fixed-width columns, and stays on one line inside it, so how many rows there are
+	   depends only on the chart's width, never on the values shown (which change length, like
+	   "not available yet"). Each cell fits the longest value; an ellipsis is only a safety net. */
 	.readout {
-		display: flex;
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
 		gap: var(--space-1) var(--space-4);
 		margin-bottom: var(--space-2);
 		font-size: var(--text-sm);
 	}
 
+	.readout > * {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	.unit {
-		margin-left: calc(var(--space-3) * -1);
 		color: var(--text-muted);
 	}
 
@@ -399,13 +470,13 @@
 	}
 
 	circle.actual {
-		fill: var(--text);
-		stroke: var(--text);
+		fill: var(--data-actual);
+		stroke: var(--data-actual);
 	}
 
 	circle.forecast {
 		fill: var(--surface);
-		stroke: var(--accent);
+		stroke: var(--data-forecast);
 		stroke-dasharray: none;
 	}
 

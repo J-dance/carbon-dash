@@ -57,7 +57,7 @@
 	.bar {
 		display: flex;
 		width: 100%;
-		height: 2.75rem;
+		height: 2.25rem;
 		border-radius: var(--radius-md);
 		background: var(--surface);
 		overflow: hidden;

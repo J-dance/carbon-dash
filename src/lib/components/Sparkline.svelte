@@ -71,9 +71,10 @@
 		width: 100%;
 	}
 
+	/* Violet, like the forecast line in LineChart: regions only have forecasts. */
 	.line {
 		fill: none;
-		stroke: var(--accent);
+		stroke: var(--data-forecast);
 		stroke-width: 2;
 		stroke-linejoin: round;
 	}
@@ -81,7 +82,7 @@
 	/* Hollow, like the forecast dot in LineChart. */
 	.dot {
 		fill: var(--surface);
-		stroke: var(--accent);
+		stroke: var(--data-forecast);
 		stroke-width: 2;
 	}
 </style>

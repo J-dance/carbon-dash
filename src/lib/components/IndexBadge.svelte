@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { INDEXES, type Index } from "#lib/api/types.ts";
 
-	/** The index as a word plus a 5-step meter, so the band never relies on colour alone. */
+	/**
+	 * The index as a word plus a 5-step meter, tinted in the index's colour (green to red). The
+	 * word and the meter both say the band, so it never relies on colour alone.
+	 */
 	let { index }: { index: Index } = $props();
 
 	// 1 (very low) to 5 (very high): how many steps of the meter are filled.
@@ -9,7 +12,7 @@
 </script>
 
 <!-- The word carries the meaning. The meter repeats it visually and is hidden from screen readers. -->
-<span class="badge">
+<span class="badge" data-index={index}>
 	<span class="index">{index}</span>
 	<span class="meter" aria-hidden="true">
 		{#each INDEXES as _, i}
@@ -25,9 +28,10 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-1) var(--space-2);
-		padding: var(--space-1) var(--space-3);
+		padding: var(--space-1) var(--space-2);
 		border-radius: var(--radius-pill);
-		background: var(--surface-sunken);
+		/* A light tint of the index colour (data-index, see layout.css). The text stays --text. */
+		background: color-mix(in srgb, var(--index-color) 16%, var(--surface));
 		font-size: var(--text-sm);
 		font-weight: 600;
 	}
@@ -44,7 +48,9 @@
 	}
 
 	/* Five bars that rise like a signal meter, so a higher band looks bigger as well as having more
-	   bars filled. Empty bars use --border, which is 3:1 against the badge, so all five show. */
+	   bars filled. Filled bars are solid in the index colour; empty ones are hollow outlines in
+	   --text-muted. Solid against hollow is a difference in shape, so it reads without colour vision,
+	   and both are 3:1 or more against the badge's tint, so all five show. */
 	.meter {
 		display: inline-flex;
 		align-items: flex-end;
@@ -55,7 +61,7 @@
 	.meter i {
 		width: 4px;
 		border-radius: 1px;
-		background: var(--border);
+		box-shadow: inset 0 0 0 1px var(--text-muted);
 	}
 
 	.meter i:nth-child(1) {
@@ -75,6 +81,7 @@
 	}
 
 	.meter i.filled {
-		background: var(--text);
+		background: var(--index-color);
+		box-shadow: none;
 	}
 </style>

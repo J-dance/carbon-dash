@@ -22,7 +22,9 @@
 </script>
 
 <dl class="tiles">
-	<div>
+	<!-- data-index picks the index colour (layout.css), which tints this tile. The index word
+		is in the tile too, so the colour only repeats it. -->
+	<div class="latest" data-index={latest.index}>
 		<dt>Latest</dt>
 		<dd><span class="value">{latest.forecast}</span> {latest.index}</dd>
 	</div>
@@ -45,10 +47,16 @@
 		gap: var(--space-2);
 	}
 
+	/* Stat tiles on the sunken surface, like the accuracy summary on the dashboard. */
 	.tiles div {
-		padding: var(--space-2);
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--radius-sm);
+		padding: var(--space-3);
+		border-radius: var(--radius-md);
+		background: var(--surface-sunken);
+	}
+
+	.tiles .latest {
+		background: color-mix(in srgb, var(--index-color) 14%, var(--surface));
+		box-shadow: inset 3px 0 var(--index-color);
 	}
 
 	dt {
@@ -56,20 +64,22 @@
 		font-size: var(--text-sm);
 	}
 
+	/* overflow-wrap so "very high" breaks rather than widening its tile in a narrow panel. */
 	dd {
 		font-size: var(--text-sm);
+		overflow-wrap: anywhere;
 	}
 
 	.value {
 		display: block;
 		font-size: var(--text-xl);
-		font-weight: 700;
+		font-weight: 600;
 		font-variant-numeric: tabular-nums;
 		line-height: 1.2;
 	}
 
 	.unit {
-		margin-top: var(--space-1);
+		margin-top: var(--space-2);
 		color: var(--text-muted);
 		font-size: var(--text-sm);
 	}

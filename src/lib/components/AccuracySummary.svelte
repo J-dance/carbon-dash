@@ -34,23 +34,31 @@
 			<dd>{withinTenPercent} <small>of periods</small></dd>
 		</div>
 	</dl>
-	<p class="note">Based on {accuracy.count} periods that have an actual value.</p>
 {:else}
 	<p class="note">There are no actual values for this range yet, so accuracy cannot be measured.</p>
 {/if}
 
 <style>
-	/* Three stat tiles on the sunken surface, as many per row as fit (each at least 11rem). */
+	/* One sunken panel with a row per stat, split by thin lines in the widget's colour. Rows rather
+	   than separate tiles keep the widget short, so the dashboard's top row is too. Each row is one
+	   line, label on the left and value on the right; a value that does not fit wraps under it. */
 	.stats {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
-		gap: var(--space-2);
+		padding: 0 var(--space-3);
+		border-radius: var(--radius-md);
+		background: var(--surface-sunken);
 	}
 
 	.stats div {
-		padding: var(--space-3) var(--space-4);
-		border-radius: var(--radius-md);
-		background: var(--surface-sunken);
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0 var(--space-3);
+		padding: var(--space-2) 0;
+	}
+
+	.stats div + div {
+		border-top: 2px solid var(--surface);
 	}
 
 	dt {
@@ -59,7 +67,7 @@
 	}
 
 	dd {
-		font-size: var(--text-lg);
+		font-size: var(--text-base);
 		font-weight: 600;
 	}
 
@@ -69,9 +77,7 @@
 		font-weight: 400;
 	}
 
-	/* The bottom margin separates the summary from whatever follows it, such as the chart. */
 	.note {
-		margin: var(--space-2) 0 var(--space-4);
 		color: var(--text-muted);
 		font-size: var(--text-sm);
 	}

@@ -22,9 +22,11 @@
 		selectedId: number | null;
 	} = $props();
 
+	// Short, so the table fits a 320px screen (WCAG reflow). The unit is in the caption, and the
+	// index badge under each number explains itself.
 	const COLUMN_LABELS: Record<SortKey, string> = {
 		name: "Region",
-		forecast: "Average forecast (gCO2/kWh) and index",
+		forecast: "Average forecast",
 		tier: "Tier",
 	};
 
@@ -72,16 +74,14 @@
 	</th>
 {/snippet}
 
-<!-- Only the status span is live, so the hint is not read out again after every sort. -->
-<p class="sort-status">
-	<span role="status">{sortStatus}</span>
-	Select a column heading to change the sort.
-</p>
-
 <table>
+	<!-- The caption doubles as the widget's title: a short title, then the detail in muted text. -->
 	<caption>
-		Carbon intensity by region, ranked over {RANGE_PHRASES[range]}. Top is the
-		cleanest third.
+		<span class="caption-title">Regions by average forecast</span>
+		<span class="caption-note">
+			Carbon intensity in gCO₂/kWh, ranked over {RANGE_PHRASES[range]}. Top is the cleanest
+			third.
+		</span>
 	</caption>
 	<thead>
 		<tr>
@@ -120,26 +120,62 @@
 	</tbody>
 </table>
 
+<!-- A footnote under the table. Only the status span is live, so the hint is not read out again
+	after every sort. -->
+<p class="sort-status">
+	<span role="status">{sortStatus}</span>
+	Select a column heading to change the sort.
+</p>
+
 <style>
+	/* A step smaller on a phone, so a long region name like "Merseyside" leaves room for the badges
+	   at 320px wide. Full size from 40rem. */
 	table {
 		width: 100%;
 		border-collapse: collapse;
+		font-size: var(--text-sm);
 	}
 
 	caption {
 		padding-bottom: var(--space-3);
-		color: var(--text-muted);
-		font-size: var(--text-sm);
 		text-align: left;
 	}
 
-	/* Tight padding first, so the table fits a phone without scrolling sideways, and roomier
-	   from 40rem wide. Rows are split by quiet hairlines; the header has the stronger rule. */
+	/* Styled like every widget's h2 title, so the table's widget matches the others. */
+	/* Room on the right for the widget's InfoButton in the corner. */
+	.caption-title {
+		display: block;
+		padding-right: var(--space-8);
+		font-family: var(--font-serif);
+		font-size: var(--text-lg);
+		font-weight: 600;
+		line-height: 1.2;
+		letter-spacing: -0.01em;
+	}
+
+	.caption-note {
+		display: block;
+		margin-top: var(--space-1);
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+	}
+
+	/* Tight padding first, so the table fits a 320px phone without scrolling sideways, and roomier
+	   from 40rem wide. The outer cells have no outside padding, since the widget already has some.
+	   Rows are split by quiet hairlines; the header has the stronger rule. */
 	th,
 	td {
-		padding: var(--space-3) var(--space-2);
+		padding: var(--space-3) var(--space-1);
 		border-bottom: var(--border-width) solid var(--hairline);
 		text-align: left;
+	}
+
+	tr > :first-child {
+		padding-left: 0;
+	}
+
+	tr > :last-child {
+		padding-right: 0;
 	}
 
 	thead th {
@@ -154,14 +190,30 @@
 	}
 
 	@media (min-width: 40rem) {
+		table {
+			font-size: var(--text-base);
+		}
+
 		th,
 		td {
-			padding-inline: var(--space-3);
+			padding: var(--space-2) var(--space-3);
 		}
 	}
 
+	/* A light tint under the pointer, to help the eye follow a row across. */
+	tbody tr:hover {
+		background: var(--surface-sunken);
+	}
+
+	/* The selected row's bar sits in the first cell's left padding, so that cell keeps some. */
+	tr.selected > :first-child {
+		padding-left: var(--space-2);
+	}
+
 	.sort-status {
-		margin: 0 0 var(--space-3);
+		margin-top: var(--space-3);
+		padding-top: var(--space-3);
+		border-top: var(--border-width) solid var(--hairline);
 		color: var(--text-muted);
 		font-size: var(--text-sm);
 	}
@@ -225,13 +277,25 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	/* The number above its index badge, both on the right, so the numbers still line up down the
-	   column whatever the width of the badge. */
+	/* On a phone, the number above its index badge, both on the right, so the numbers still line up
+	   down the column whatever the width of the badge. */
 	.forecast {
 		display: inline-flex;
 		flex-direction: column;
 		align-items: flex-end;
 		gap: var(--space-1);
 		font-weight: 600;
+	}
+
+	/* From 40rem there is room for the badge beside the number, so each row is one line: badge on
+	   the left, number on the right, and the numbers still line up down the column. row-reverse puts
+	   the badge first on screen while the number stays first in the reading order. After the rule
+	   above, so it wins at this width. */
+	@media (min-width: 40rem) {
+		.forecast {
+			flex-direction: row-reverse;
+			align-items: center;
+			gap: var(--space-3);
+		}
 	}
 </style>

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Card from "#lib/components/Card.svelte";
+	import InfoButton from "#lib/components/InfoButton.svelte";
 	import type { RegionGap } from "#lib/regions/stats.ts";
 	import { RANGE_PHRASES, type Range } from "#lib/regions/types.ts";
 
@@ -6,17 +8,24 @@
 	let { gap, range }: { gap: RegionGap; range: Range } = $props();
 </script>
 
-<section class="gap" aria-labelledby="gap-heading">
-	<h2 id="gap-heading">Cleanest vs dirtiest region</h2>
+<Card>
+	<h2>Cleanest vs dirtiest region</h2>
+	<InfoButton title="Cleanest vs dirtiest region">
+		<p>
+			The regions with the lowest and highest average forecast carbon intensity over the chosen
+			period, and the difference between them.
+		</p>
+		<p>It shows how much where you live in Great Britain changes how clean your electricity is.</p>
+	</InfoButton>
 	<dl>
-		<div>
+		<div class="cleanest">
 			<dt>Cleanest</dt>
 			<dd>
 				<span class="value">{Math.round(gap.cleanest.avgForecast)}</span>
 				{gap.cleanest.shortName}
 			</dd>
 		</div>
-		<div>
+		<div class="dirtiest">
 			<dt>Dirtiest</dt>
 			<dd>
 				<span class="value">{Math.round(gap.dirtiest.avgForecast)}</span>
@@ -29,37 +38,39 @@
 		</div>
 	</dl>
 	<p class="unit">Average forecasts in gCO₂/kWh over {RANGE_PHRASES[range]}, across all 14 regions.</p>
-</section>
+</Card>
 
 <style>
-	.gap {
-		max-width: var(--content-max-width);
-		margin-bottom: var(--space-6);
-		padding: var(--space-4);
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--surface);
-	}
-
-	h2 {
-		margin-bottom: var(--space-2);
-		color: var(--text-muted);
-		font-size: var(--text-sm);
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	/* Three equal tiles. min-width: 0 lets them shrink on a narrow screen instead of overflowing. */
+	/* Three tiles in a row where they fit, each at least 7rem so a region name never breaks
+	   mid-word. On a small phone the gap tile wraps to a second row. */
 	dl {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
 		gap: var(--space-2);
 	}
 
+	/* Stat tiles on the sunken surface, like the other widgets' tiles. */
 	dl div {
-		padding: var(--space-2);
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--radius-sm);
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-md);
+		background: var(--surface-sunken);
+	}
+
+	/* Cleanest in the green of a very low index and dirtiest in the red of a very high one: a tint
+	   and a bar down the left edge. The labels say which is which, so the colour only repeats them.
+   `dl` in the selector so it outranks the `dl div` rule above. */
+	dl .cleanest,
+	dl .dirtiest {
+		background: color-mix(in srgb, var(--tile-color) 14%, var(--surface));
+		box-shadow: inset 3px 0 var(--tile-color);
+	}
+
+	.cleanest {
+		--tile-color: var(--index-very-low);
+	}
+
+	.dirtiest {
+		--tile-color: var(--index-very-high);
 	}
 
 	dt {
@@ -67,22 +78,23 @@
 		font-size: var(--text-sm);
 	}
 
-	/* overflow-wrap so a long region name breaks rather than widening its tile. */
+	/* break-word only splits a word that is too long for the tile on its own, so it is a safety net
+	   rather than something that happens at normal widths. */
 	dd {
 		font-size: var(--text-sm);
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
 	}
 
 	.value {
 		display: block;
-		font-size: var(--text-xl);
-		font-weight: 700;
+		font-size: var(--text-lg);
+		font-weight: 600;
 		font-variant-numeric: tabular-nums;
-		line-height: 1.2;
+		line-height: 1.3;
 	}
 
 	.unit {
-		margin-top: var(--space-1);
+		margin-top: var(--space-3);
 		color: var(--text-muted);
 		font-size: var(--text-sm);
 	}

@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import { withParam } from "#lib/url.ts";
 
 	interface Option {
-		/** What goes in the URL. Null means "no filter": the param is removed. */
+		/**
+		 * What goes in the URL. Null means "no filter": the param is removed rather than set to
+		 * something like "all", because the endpoint rejects values it does not know.
+		 */
 		value: string | null;
 		label: string;
 	}
@@ -14,17 +18,6 @@
 		current
 	}: { label: string; param: string; options: Option[]; current: string | null } = $props();
 
-	// Built from `page.url.search` so the other params are kept. A null value removes the param
-	// instead of setting it, because the endpoint rejects values it does not know.
-	function hrefFor(value: string | null) {
-		const params = new URLSearchParams(page.url.search);
-		if (value === null) {
-			params.delete(param);
-		} else {
-			params.set(param, value);
-		}
-		return "?" + params;
-	}
 </script>
 
 <nav aria-label={label}>
@@ -32,7 +25,7 @@
 	{#each options as option (option.value)}
 		<!-- reset="false": after the navigation, stay where you are on the page and keep keyboard focus on the link you pressed. -->
 		<a
-			href={hrefFor(option.value)}
+			href={withParam(page.url.search, param, option.value)}
 			aria-current={option.value === current ? "true" : undefined}
 			data-sveltekit-reset="false"
 		>

@@ -55,7 +55,7 @@ Each step lists the Svelte concepts it is meant to teach.
     - [x] Filterable: period and tier links (see below)
     - [ ] Tier badge (icon, label and colour) and the index word with a 5-step meter
   - [ ] Filters synced to URL query params (date range, tier, fuel source)
-    - [x] Date range and tier: plain links (`FilterLinks`, wrapped by `RangeFilter` and `TierFilter`) that rewrite `?range=` and `?tier=` and keep the other params. Links rather than `goto`, so they work without JavaScript and open in a new tab. SvelteKit 3 spells "stay put and keep focus" as `data-sveltekit-reset="false"`, not the old `noscroll` and `keepfocus`
+    - [x] Date range and tier: plain links (`FilterLinks`, wrapped by `RangeFilter` and `TierFilter`) that rewrite `?range=` and `?tier=` and keep the other params (`withParam` in `src/lib/url.ts`, tested, shared with the row selection). Links rather than `goto`, so they work without JavaScript and open in a new tab. SvelteKit 3 spells "stay put and keep focus" as `data-sveltekit-reset="false"`, not the old `noscroll` and `keepfocus`
     - [ ] Fuel source: open. The endpoint returns no fuel data for the table, so this needs a column (renewable %) first, or should be dropped from the MVP
   - [ ] Preview panel with sparkline, fuel mix and forecast
   - [ ] Concepts: dynamic routes (`/regions/[id]`), `$app/state` and `goto`, shared state in a `.svelte.ts` module, `<svelte:boundary>`

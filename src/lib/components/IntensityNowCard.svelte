@@ -48,18 +48,14 @@
 </Card>
 
 <style>
-	h2 {
-		margin-bottom: var(--space-2);
-		color: var(--text-muted);
-		font-size: var(--text-sm);
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
+	/* The big number is the point of the widget: tight letter-spacing at this size, and equal-width
+	   digits so it does not shift sideways when the value changes. */
 	.value {
 		font-size: var(--text-display);
-		font-weight: 700;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
 		line-height: 1;
+		letter-spacing: -0.03em;
 	}
 
 	.value small {
@@ -67,6 +63,7 @@
 		color: var(--text-muted);
 		font-size: var(--text-base);
 		font-weight: 400;
+		letter-spacing: normal;
 	}
 
 	.note {
@@ -76,11 +73,17 @@
 	}
 
 	.index-row {
-		margin-top: var(--space-3);
+		margin-top: var(--space-4);
 	}
 
+	/* A chip on the sunken surface, so the comparison reads as a small fact under the number. */
 	.delta {
-		margin-top: var(--space-2);
+		display: inline-flex;
+		gap: var(--space-2);
+		margin-top: var(--space-3);
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius-md);
+		background: var(--surface-sunken);
 		font-size: var(--text-sm);
 	}
 </style>

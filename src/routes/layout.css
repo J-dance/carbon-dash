@@ -23,6 +23,8 @@
 	/* Decoration only: the dot grid on the canvas, never behind text on its own. */
 	--bg-dot: light-dark(#c9ced6, #232830);
 	--surface: light-dark(#ffffff, #16191e);
+	/* A step back from --surface, for tiles and chips inside a widget. */
+	--surface-sunken: light-dark(#f3f5f7, #1e2228);
 	--text: light-dark(#12151a, #eef1f4);
 	--text-muted: light-dark(#555d68, #9aa3ae);
 	--border: light-dark(#7c8490, #6c7480);
@@ -35,6 +37,13 @@
 	   transparent in dark mode, where shadows barely show and the hairline border does that job. */
 	--shadow-color: light-dark(rgb(18 21 26 / 0.05), transparent);
 	--shadow-widget: 0 1px 2px var(--shadow-color), 0 8px 24px var(--shadow-color);
+
+	/* Fuel groups in charts. Each is 3:1 or more against --surface. The fuel mix bar also gives
+	   renewable stripes and imports a hatch, and its legend gives every share as text. */
+	--data-renewable: light-dark(#1f9d57, #3dd68c);
+	--data-low-carbon: var(--accent);
+	--data-fossil: light-dark(#e8590c, #ff7a33);
+	--data-import: var(--text-muted);
 
 	/* Performance tiers: a tinted fill, dark text on it and a stronger border. Tier badges also
 	   carry an icon and a label, so colour is never the only signal. */
@@ -66,7 +75,7 @@
 	--text-base: 1rem;
 	--text-lg: 1.25rem;
 	--text-xl: 1.75rem;
-	--text-display: 3rem;
+	--text-display: clamp(3rem, 2.4rem + 2.5vw, 4.5rem);
 	/* Fluid sizes: they grow with the viewport between a phone and a wide screen, so headings
 	   never need a media query. The rem part keeps them scaling with browser zoom. */
 	--text-standfirst: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);

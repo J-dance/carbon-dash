@@ -73,18 +73,17 @@
 		</p>
 	{/if}
 
-	<div class="cards">
+	<div class="widgets">
 		<IntensityNowCard intensity={data.latest.now} average30d={data.latest.average30d} />
 		<FuelMixCard mix={data.latest.mix} />
+		<div class="wide">
+			<Card>
+				<h2>Last 24 hours: actual vs forecast</h2>
+				<AccuracySummary accuracy={data.history.accuracy} />
+				<LineChart periods={data.history.periods} subject="national carbon intensity" />
+			</Card>
+		</div>
 	</div>
-
-	<section class="history">
-		<Card>
-			<h2>Last 24 hours: actual vs forecast</h2>
-			<AccuracySummary accuracy={data.history.accuracy} />
-			<LineChart periods={data.history.periods} subject="national carbon intensity" />
-		</Card>
-	</section>
 {:else}
 	<p>No data is available yet. Reload in a few minutes to try again.</p>
 {/if}
@@ -133,19 +132,24 @@
 	}
 
 	/*
-	 * Mobile first, with no media query: as many columns as fit, each at least 18rem.
-	 * min(100%, 18rem) lets a column shrink below 18rem on very narrow screens
-	 * instead of overflowing.
+	 * The bento grid. Mobile first: one column, so the widgets stack. From 48rem the "now" and fuel
+	 * mix widgets sit side by side, the fuel mix wider because its legend needs the room, and a
+	 * `.wide` widget spans the whole row. minmax(0, …) lets a column shrink below its content.
+	 * Both widgets in a row stretch to the same height, so the row edges line up.
 	 */
-	.cards {
+	.widgets {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+		grid-template-columns: minmax(0, 1fr);
 		gap: var(--space-4);
-		max-width: var(--content-max-width);
 	}
 
-	.history {
-		max-width: var(--content-max-width);
-		margin-top: var(--space-4);
+	@media (min-width: 48rem) {
+		.widgets {
+			grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+		}
+	}
+
+	.wide {
+		grid-column: 1 / -1;
 	}
 </style>

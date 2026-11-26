@@ -135,9 +135,4 @@
 		max-width: var(--content-max-width);
 		margin-top: var(--space-4);
 	}
-
-	h2 {
-		margin-bottom: var(--space-2);
-		font-size: var(--text-base);
-	}
 </style>

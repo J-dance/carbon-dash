@@ -47,7 +47,8 @@
 	{#each segments as segment}
 		<li>
 			<span class="swatch {segment.group}" aria-hidden="true"></span>
-			{segment.label} {Math.round(segment.percent)}%
+			<span class="label">{segment.label}</span>
+			<strong>{Math.round(segment.percent)}%</strong>
 		</li>
 	{/each}
 </ul>
@@ -56,54 +57,77 @@
 	.bar {
 		display: flex;
 		width: 100%;
-		height: var(--space-6);
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--radius-sm);
+		height: 2.75rem;
+		border-radius: var(--radius-md);
+		background: var(--surface);
 		overflow: hidden;
 	}
 
-	/* Inset shadow, not a border, so a 0% segment leaves no sliver. */
+	/* A gap between segments, drawn as an inset shadow in the widget's colour rather than with a
+	   flex gap, so a 0% segment leaves no extra space. */
 	.segment {
-		box-shadow: inset calc(var(--space-1) / -2) 0 0 var(--surface);
+		box-shadow: inset -3px 0 0 var(--surface);
 	}
 
+	/* As many columns as fit, each at least 14rem: one column on a phone or in the narrow preview
+	   panel, and 2 by 2 in the dashboard widget, so a long label like "Other low-carbon" does not
+	   wrap. */
 	.legend {
-		display: flex;
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
 		gap: var(--space-2) var(--space-4);
-		margin-top: var(--space-2);
+		margin-top: var(--space-4);
 		list-style: none;
 		font-size: var(--text-sm);
 	}
 
-	.swatch {
-		display: inline-block;
-		width: var(--space-3);
-		height: var(--space-3);
-		border: var(--border-width) solid var(--border);
-		vertical-align: baseline;
+	.legend li {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 	}
 
+	.label {
+		color: var(--text-muted);
+	}
+
+	/* Pushed to the end of the row so the shares line up in a column. */
+	.legend strong {
+		margin-left: auto;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.swatch {
+		flex: none;
+		width: var(--space-3);
+		height: var(--space-3);
+		border-radius: 3px;
+	}
+
+	/* Striped, like the progress bars in the design reference, and so it differs by pattern as
+	   well as colour. The pale stripe is the same green mixed into the widget's colour. */
 	.renewable {
-		background: var(--accent);
+		background: repeating-linear-gradient(
+			-45deg,
+			var(--data-renewable) 0 4px,
+			color-mix(in srgb, var(--data-renewable) 35%, var(--surface)) 4px 7px
+		);
 	}
 
 	.lowCarbon {
-		background: var(--text-muted);
+		background: var(--data-low-carbon);
 	}
 
 	.fossil {
-		background: var(--text);
+		background: var(--data-fossil);
 	}
 
 	/* Hatched, so this group differs by pattern and not only by shade. */
 	.importAndOther {
 		background: repeating-linear-gradient(
 			45deg,
-			var(--surface),
-			var(--surface) 3px,
-			var(--border) 3px,
-			var(--border) 6px
+			var(--data-import) 0 1.5px,
+			var(--surface) 1.5px 4px
 		);
 	}
 </style>

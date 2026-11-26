@@ -25,9 +25,9 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-1) var(--space-2);
-		padding: 0 var(--space-3);
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--radius-md);
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius-pill);
+		background: var(--surface-sunken);
 		font-size: var(--text-sm);
 		font-weight: 600;
 	}
@@ -43,15 +43,35 @@
 		text-transform: uppercase;
 	}
 
+	/* Five bars that rise like a signal meter, so a higher band looks bigger as well as having more
+	   bars filled. Empty bars use --border, which is 3:1 against the badge, so all five show. */
 	.meter {
 		display: inline-flex;
+		align-items: flex-end;
 		gap: 2px;
+		height: 0.875rem;
 	}
 
 	.meter i {
-		width: 7px;
-		height: var(--space-3);
-		border: var(--border-width) solid var(--text);
+		width: 4px;
+		border-radius: 1px;
+		background: var(--border);
+	}
+
+	.meter i:nth-child(1) {
+		height: 40%;
+	}
+	.meter i:nth-child(2) {
+		height: 55%;
+	}
+	.meter i:nth-child(3) {
+		height: 70%;
+	}
+	.meter i:nth-child(4) {
+		height: 85%;
+	}
+	.meter i:nth-child(5) {
+		height: 100%;
 	}
 
 	.meter i.filled {

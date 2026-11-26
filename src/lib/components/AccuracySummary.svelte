@@ -40,10 +40,17 @@
 {/if}
 
 <style>
+	/* Three stat tiles on the sunken surface, as many per row as fit (each at least 11rem). */
 	.stats {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2) var(--space-8);
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+		gap: var(--space-2);
+	}
+
+	.stats div {
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-md);
+		background: var(--surface-sunken);
 	}
 
 	dt {
@@ -53,7 +60,7 @@
 
 	dd {
 		font-size: var(--text-lg);
-		font-weight: 700;
+		font-weight: 600;
 	}
 
 	dd small {
